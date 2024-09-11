@@ -1,73 +1,52 @@
 import threading
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QMessageBox
-from PyQt5.QtCore import QMetaObject, Qt, QTimer
-from transcribe import transcribe_audio
-
-def update_ui(self, transcription):
-    self.transcription_label.setText(f"Transcribed Text: {transcription}")
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox
+from PyQt5.QtCore import pyqtSlot, QTimer
+from transcribe import Transcriber
 
 class TranscriptionApp(QWidget):
     def __init__(self):
-        super().__init__() # Call parent class (QWidget) constructor
-        self.init_ui() # Initialize the UI
-    # Set up UI elements
+        super().__init__()
+        self.init_ui()
+
     def init_ui(self):
-        # Set up layout for the widgets (buttons, labels)
         layout = QVBoxLayout()
-        
-        # Create upload audio button and connect it to upload_file method
-        self.upload_button = QPushButton('Upload Audio')
-        self.upload_button.clicked.connect(self.upload_file)
-        
-        # Create a label that will display the transcribed text
-        self.transcription_label = QLabel('Transcribed Text:')
-        
-        # Create a QTextEdit for displaying the transcription
-        self.transcription_text = QTextEdit()
-        self.transcription_text.setReadOnly(True)
-        
-        # Add button, label, and text edit to layout
+
+        self.upload_button = QPushButton('Upload and Transcribe Audio')
+        self.upload_button.clicked.connect(self.upload_and_transcribe)
+
+        self.text_area = QTextEdit()
+        self.text_area.setReadOnly(True)
+
         layout.addWidget(self.upload_button)
-        layout.addWidget(self.transcription_label)
-        layout.addWidget(self.transcription_text)
-        
-        # Set layout for the window, window title, and show the window
+        layout.addWidget(self.text_area)
+
         self.setLayout(layout)
         self.setWindowTitle('Audio Transcription App')
-        self.show()
-        
-    # Function to upload audio file    
-    def upload_file(self):
+        self.setGeometry(300, 300, 400, 300)
 
-def update_ui(self, transcription):
-    self.transcription_text.setText(transcription)
-        # Open file dialog to select audio file
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a)')        
-        # Check if file path is valid
+    def upload_and_transcribe(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a)')
         if file_path:
-            # Transcribe audio file
-            threading.Thread(target=self.run_transcription, args=(file_path,)).start()
+            print(f"File selected: {file_path}")  # Debug print
+            self.text_area.setText("Transcribing... Please wait.")
+            self.upload_button.setEnabled(False)
+
+            self.transcriber = Transcriber()
+            self.transcriber.finished.connect(self.update_transcription)
+            
+            print("Starting transcription thread")  # Debug print
+            self.thread = threading.Thread(target=self.transcriber.transcribe, args=(file_path,))
+            self.thread.start()
         else:
-            # Display error if no file is selected
             QMessageBox.warning(self, 'Error', 'No file selected')
-    
-    # Function that runs transcription in a separate thread
-    def run_transcription(self, file_path):
-        try:
-            # Transcribe audio file
-            transcription = transcribe_audio(file_path)
-            
-            # Log the transcription result to the console
-            print(f"Transcription: {transcription}")
-            
-            # Use QTimer to update the UI in a separate thread
-            QTimer.singleShot(0, lambda: self.update_ui(transcription))
-            
-            # Update the UI safely on the main thread
-            #QMetaObject.invokeMethod(self.transcription_label, 'setText', Qt.QueuedConnection, f"Transcribed Text: {transcription}")
-            
-        except Exception as e:
-            # Display error if issue occurs
-            QMessageBox.critical(self, 'Error', f"Error during transcription: {e}")
-    def update_ui(self, transcription):
-        self.transcription_label.setText(f"Transcribed Text: {transcription}")
+
+    @pyqtSlot(str)
+    def update_transcription(self, text):
+        print(f"Received transcription: {text[:100]}...")  # Debug print
+        QTimer.singleShot(0, lambda: self.set_text(text))
+
+    def set_text(self, text):
+        print("Updating UI")  # Debug print
+        self.text_area.setText(text)
+        self.upload_button.setEnabled(True)
+        print("UI update complete")  # Debug print
