@@ -1,67 +1,56 @@
-import re
 import whisper
-import textwrap
 from PyQt5.QtCore import QObject, pyqtSignal
+from pydub import AudioSegment
+import os
+
 class Transcriber(QObject):
     finished = pyqtSignal(str)
+    progress = pyqtSignal(int)
+
+    def __init__(self):
+        super().__init__()
+        self.chunk_duration = 5 * 60 * 1000  # 5 minutes in milliseconds
 
     def transcribe(self, file_path):
         try:
             print("Loading Whisper model...")
             model = whisper.load_model("base")
             print("Model loaded successfully!")
+
+            audio = AudioSegment.from_file(file_path)
+            total_duration = len(audio)
+            chunks = self.split_audio(audio)
             
-            print(f"Transcribing {file_path}...")
-            result = model.transcribe(file_path)
-            print("Transcription completed.")
-            
-            # Format the transcription
-            transcript = result['text']
-            formatted_transcript = self.format_transcript(transcript)
-            
-            # Emit the transcription result
-            print(f"Emitting formatted result: {formatted_transcript[:100]}...")  # Debug print
+            full_transcript = ""
+            for i, chunk in enumerate(chunks):
+                chunk_path = f"temp_chunk_{i}.wav"
+                chunk.export(chunk_path, format="wav")
+                
+                print(f"Transcribing chunk {i+1}/{len(chunks)}...")
+                result = model.transcribe(chunk_path)
+                full_transcript += result['text'] + " "
+                
+                os.remove(chunk_path)
+                
+                progress = int((i + 1) / len(chunks) * 100)
+                self.progress.emit(progress)
+
+            formatted_transcript = self.format_transcript(full_transcript)
             self.finished.emit(formatted_transcript)
             
         except Exception as e:
             error_message = f"Error during transcription: {str(e)}"
             print(error_message)
             self.finished.emit(error_message)
-    
-    def format_transcript(self, transcript, wrap_width=80):
-        """
-        Formats the transcript text by wrapping lines, adding spacing between paragraphs,
-        and handling speaker turns and timestamps if included.
-        """
-        # Split the transcript by lines (in case it is a block of text)
-        lines = transcript.split("\n")        
-        
-        # Initialize formatted output
-        formatted_lines = []
-        
-        # Regex to detect speakers (assuming format like 'Speaker 1: ...')
-        speaker_pattern = re.compile(r'^(Speaker\s\d+|Speaker\s[A-Z]):')
-        
-        # Iterate over each line
-        for line in lines:
-            line = line.strip()
-            
-            if not line:
-                # Skip empty lines
-                continue
-            
-            # Check if the line is a speaker turn
-            if speaker_pattern.match(line):
-                # Add a newline before the speaker turn
-                formatted_lines.append("\n")
-                # Wrap the line and append to formatted lines
-                formatted_lines.append(textwrap.fill(line, width=wrap_width))
-                formatted_lines.append("\n") # Extra line for clarity
-            else:
-                # Handle regular lines
-                formatted_lines.append(textwrap.fill(line, width=wrap_width))
-                
-        # Join the formatted lines into a single string
-        formatted_text = "\n".join(formatted_lines)
-        
-        return formatted_text
+
+    def split_audio(self, audio):
+        chunks = []
+        for i in range(0, len(audio), self.chunk_duration):
+            chunks.append(audio[i:i+self.chunk_duration])
+        return chunks
+
+    def format_transcript(self, transcript):
+        # This method can be expanded to include more sophisticated formatting
+        lines = transcript.split('.')
+        formatted_lines = [f"Speaker: {line.strip()}" for line in lines if line.strip()]
+        return '\n\n'.join(formatted_lines)

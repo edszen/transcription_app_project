@@ -71,3 +71,14 @@ Transcript formatting with bold speaker names and proper line breaks is in progr
 2. Install the required dependencies:
    ```bash
    pip install PyQt5 whisper pydub
+
+source venv/bin/activate # Activate the virtual environment
+python main.py # Run the application
+pip freeze > requirements.txt # Save the requirements to a file
+To run your application:
+
+Make sure you're in your project directory.
+Activate your virtual environment if it's not already activated.
+Run your main Python script, which is likely named main.py:
+python main.py
+This will start your application.
