@@ -17,28 +17,30 @@ Transcript formatting with bold speaker names and proper line breaks is in progr
 1. **Add Timestamps**:
    - Display timestamps alongside the transcribed text indicating when each section was spoken.
    
-2. **Speaker Recognition**:
-   - Automatically detect and label different speakers in the transcript (e.g., "Speaker 1", "Speaker 2").
+2. **Improve Speaker Recognition**:
+   -Improve the automatic detection and label different speakers in the transcript (e.g., "Speaker 1", "Speaker 2").
+   - Enhance the current speaker differentiation system for more accurate results.
 
 3. **Summarization**:
    - Provide a concise summary of the entire transcription or specific sections for quick reference.
    
 4. **Keyword Detection**:
    - Automatically detect and highlight key phrases or topics in the transcription for easier navigation.
-   - Can be set up to detect specific keywords or phrases that are important and set by the user.
+   - Implement user-defined keyword detection.
 
 5. **AI Chat Extension**:
-   - Integrate an AI-powered chat system that allows users to ask questions and get explanations or clarifications based on the transcription.
+   - Integrate an AI-powered chat system for transcript-based Q&A.
    
 6. **Security Measures**:
-   - Implement security measures to ensure that audio files containing confidential information are processed locally and not exposed to the web.
+   - Ensure local processing of audio files for confidentiality.
 
 7. **Improve UI**:
-   - Add new features to the UI, including buttons for accessing timestamps, speaker recognition, keyword detection, and an AI chat interface.
+   - Add buttons for accessing timestamps, improved speaker recognition, keyword detection.
+   - AI chat interface.
    - Refine the layout for better usability and visual appeal.
 
 8. **Testing and Debugging**:
-   - Thoroughly test the application to ensure it functions correctly and handles various audio formats and scenarios.
+   - Thoroughly test with various audio formats and scenarios.
    - Debug any issues that arise during testing.
 
 9. **Documentation**:
@@ -50,16 +52,15 @@ Transcript formatting with bold speaker names and proper line breaks is in progr
 
 11. **Add a progress bar**:
     - Implement a progress bar to show the progress of the transcription process.
+    - Show percentage next to the progress bar.
     - Maybe add the 3 dots to indicate that the transcription is still in progress in the text area. e.g. "Transcribing audio file... Please wait..." with the 3 dots at the end counting up to 3 and then resetting to 0.
 
 12. **Add a button to download the transcript**:
     - Add a button to download the transcript as a text file.
 
 13. **Add settings menu**:
-    - Add a settings menu to allow users to configure the application, such as selecting the Whisper model to use.
-    - Configure your AI API key in the settings menu.
-    - Add a button to open the settings menu.
-    - Add section to edit speaker names, keywords, formatting, and more.
+    - Implement a settings menu for configuration options (e.g., Whisper model selection, API key setup).
+    - Add options to edit speaker names, keywords, and formatting preferences.
 
 14. **Deployment**:
     - Package the application for distribution, making it easy for users to install and run.
@@ -70,7 +71,7 @@ Transcript formatting with bold speaker names and proper line breaks is in progr
 1. Ensure you have Python installed.
 2. Install the required dependencies:
    ```bash
-   pip install PyQt5 whisper pydub
+   pip install -r requirements.txt
 
 source venv/bin/activate # Activate the virtual environment
 python main.py # Run the application
