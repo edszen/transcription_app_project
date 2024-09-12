@@ -7,6 +7,11 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
 - **Transcription with Whisper**: The app utilizes the Whisper model for audio transcription.
 - **PyQt5-based UI**: Users can upload audio files and view transcripts in a desktop-friendly user interface.
 
+## Current Status
+The user interface is functional and allows file uploads via a button.
+The transcription is performed in a separate thread to keep the UI responsive.
+Transcript formatting with bold speaker names and proper line breaks is in progress and not yet fully implemented.
+
 ## To-Do
 
 1. **Add Timestamps**:
@@ -45,11 +50,18 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
 
 11. **Add a progress bar**:
     - Implement a progress bar to show the progress of the transcription process.
+    - Maybe add the 3 dots to indicate that the transcription is still in progress in the text area. e.g. "Transcribing audio file... Please wait..." with the 3 dots at the end counting up to 3 and then resetting to 0.
 
 12. **Add a button to download the transcript**:
     - Add a button to download the transcript as a text file.
 
-13. **Deployment**:
+13. **Add settings menu**:
+    - Add a settings menu to allow users to configure the application, such as selecting the Whisper model to use.
+    - Configure your AI API key in the settings menu.
+    - Add a button to open the settings menu.
+    - Add section to edit speaker names, keywords, formatting, and more.
+
+14. **Deployment**:
     - Package the application for distribution, making it easy for users to install and run.
 
 
