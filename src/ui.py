@@ -1,5 +1,5 @@
 import threading
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox, QProgressBar
 from PyQt5.QtCore import pyqtSlot, QTimer
 from transcribe import Transcriber
 import re
@@ -13,9 +13,12 @@ class TranscriptionApp(QWidget):
         layout = QVBoxLayout()
         self.upload_button = QPushButton('Upload and Transcribe Audio')
         self.upload_button.clicked.connect(self.upload_and_transcribe)
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
         self.text_area = QTextEdit()
         self.text_area.setReadOnly(True)
         layout.addWidget(self.upload_button)
+        layout.addWidget(self.progress_bar)
         layout.addWidget(self.text_area)
         self.setLayout(layout)
         self.setWindowTitle('Audio Transcription App')
@@ -26,8 +29,11 @@ class TranscriptionApp(QWidget):
         if file_path:
             self.text_area.setText("Transcribing... Please wait.")
             self.upload_button.setEnabled(False)
+            self.progress_bar.setVisible(True)
+            self.progress_bar.setValue(0)
             self.transcriber = Transcriber()
             self.transcriber.finished.connect(self.update_transcription)
+            self.transcriber.progress.connect(self.update_progress)
             self.thread = threading.Thread(target=self.transcriber.transcribe, args=(file_path,))
             self.thread.start()
         else:
@@ -37,10 +43,15 @@ class TranscriptionApp(QWidget):
     def update_transcription(self, text):
         QTimer.singleShot(0, lambda: self.set_text(text))
 
+    @pyqtSlot(int)
+    def update_progress(self, value):
+        self.progress_bar.setValue(value)
+
     def set_text(self, text):
         formatted_text = self.convert_to_html(text)
         self.text_area.setHtml(formatted_text)
         self.upload_button.setEnabled(True)
+        self.progress_bar.setVisible(False)
 
     def convert_to_html(self, text):
         css = """
@@ -54,7 +65,7 @@ class TranscriptionApp(QWidget):
         
         lines = text.split('\n')
         formatted_lines = []
-        speaker_pattern = re.compile(r'^(Speaker\s\d+|Speaker\s[A-Z]):\s*(.*)')
+        speaker_pattern = re.compile(r'^(Speaker\s\d+):\s*(.*)')
 
         for line in lines:
             line = line.strip()
