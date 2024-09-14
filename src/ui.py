@@ -56,6 +56,13 @@ class TranscriptionApp(QWidget):
             use_diarization = self.settings.value("use_diarization", False, type=bool)
             api_key = self.settings.value("huggingface_api_key", "")
             
+            # Decrypt the API key TESTING
+            api_key_encrypted = self.settings.value("huggingface_api_key", "")
+            api_key = self.encryption_utils.decrypt(api_key_encrypted)  # Decrypt the token
+            
+            # Now use the decrypted API key
+            use_diarization = self.settings.value("use_diarization", False, type=bool)
+            
             self.thread = threading.Thread(target=self.transcriber.transcribe, 
                                            args=(file_path, use_diarization, api_key))
             self.thread.start()

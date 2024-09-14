@@ -81,8 +81,9 @@ class Transcriber(QObject):
 
     def perform_diarization(self, file_path, api_key):
         try:
-            pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1",
-                                                use_auth_token=api_key)
+            print(f"Using API token: {api_key}") # Debugging line
+            pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1", use_auth_token=api_key)
+                                                
             diarization = pipeline(file_path)
             return diarization
         except Exception as e:
