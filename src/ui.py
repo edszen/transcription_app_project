@@ -1,28 +1,46 @@
 import threading
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QPushButton, QTextEdit, QFileDialog, QMessageBox, QProgressBar
-from PyQt5.QtCore import pyqtSlot, QTimer
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTextEdit, 
+                             QFileDialog, QMessageBox, QProgressBar)
+from PyQt5.QtCore import pyqtSlot, QTimer, QSettings
 from transcribe import Transcriber
+from settings import SettingsDialog
+from help_dialog import HelpDialog
 import re
 
 class TranscriptionApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.settings = QSettings("YourCompany", "AudioTranscriptionApp")
         self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout()
         self.upload_button = QPushButton('Upload and Transcribe Audio')
         self.upload_button.clicked.connect(self.upload_and_transcribe)
+        self.settings_button = QPushButton('Settings')
+        self.settings_button.clicked.connect(self.open_settings)
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.text_area = QTextEdit()
         self.text_area.setReadOnly(True)
         layout.addWidget(self.upload_button)
+        layout.addWidget(self.settings_button)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.text_area)
         self.setLayout(layout)
         self.setWindowTitle('Audio Transcription App')
         self.setGeometry(300, 300, 600, 400)
+        self.help_button = QPushButton('Help')
+        self.help_button.clicked.connect(self.show_help)
+        layout.addWidget(self.help_button)
+
+    def show_help(self):
+        dialog = HelpDialog(self)
+        dialog.exec_()
+
+    def open_settings(self):
+        dialog = SettingsDialog(self)
+        dialog.exec_()
 
     def upload_and_transcribe(self):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a)')
@@ -34,7 +52,12 @@ class TranscriptionApp(QWidget):
             self.transcriber = Transcriber()
             self.transcriber.finished.connect(self.update_transcription)
             self.transcriber.progress.connect(self.update_progress)
-            self.thread = threading.Thread(target=self.transcriber.transcribe, args=(file_path,))
+            
+            use_diarization = self.settings.value("use_diarization", False, type=bool)
+            api_key = self.settings.value("huggingface_api_key", "")
+            
+            self.thread = threading.Thread(target=self.transcriber.transcribe, 
+                                           args=(file_path, use_diarization, api_key))
             self.thread.start()
         else:
             QMessageBox.warning(self, 'Error', 'No file selected')

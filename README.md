@@ -62,8 +62,27 @@ Transcript formatting with bold speaker names and proper line breaks is in progr
     - Implement a settings menu for configuration options (e.g., Whisper model selection, API key setup).
     - Add options to edit speaker names, keywords, and formatting preferences.
 
-14. **Deployment**:
+14. **Error Handling**:
+    - Implement robust error handling for various scenarios, including file upload errors, transcription errors, and UI errors.
+    - Provide clear error messages to users.
+    - Add a button to retry the transcription in case of an error.
+    - Add a button to cancel the transcription in case of an error.
+
+15. **Add functionality to let users input and store their own tokens securely in app for speech diarization**:
+    - Add a button to open a dialog box to input and store the tokens securely in app.
+
+16. **Add languages recognition**:
+    - Add a button to open a dialog box to input and store the languages to be recognized in app.
+    - Make the transcript recognize the languages and display them in the transcript.
+
+17. **Deployment**:
     - Package the application for distribution, making it easy for users to install and run.
+    - Provide clear instructions for installation and usage.
+
+18. **Privacy Policy**:
+    - Include a privacy policy that outlines how user data is handled and stored.
+    - Ensure compliance with relevant data protection regulations.
+
 
 
 ## How to Run
@@ -83,3 +102,41 @@ Activate your virtual environment if it's not already activated.
 Run your main Python script, which is likely named main.py:
 python main.py
 This will start your application.
+
+
+
+# Audio Transcription App
+
+This application transcribes audio files and can perform speaker diarization.
+
+## Setup
+
+1. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+2. Run the application:
+   ```
+   python main.py
+   ```
+
+## Using Speaker Diarization
+
+To use speaker diarization:
+
+1. Create a Hugging Face account at https://huggingface.co/
+2. Accept the license for the Pyannote.audio model at https://huggingface.co/pyannote/speaker-diarization
+3. Generate an API token in your Hugging Face account settings
+4. In the app, click "Settings" and enter your API token
+5. Enable the "Use Speaker Diarization" option
+
+## Troubleshooting
+
+If you encounter any issues:
+
+1. Ensure you have the latest version of the app
+2. Check that your API key is entered correctly
+3. Verify that you have accepted the Pyannote.audio license
+
+For further assistance, please contact support@yourdomain.com
