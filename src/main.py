@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication
-from src.ui import TranscriptionApp
+from ui import TranscriptionApp
 
 def main():
     app = QApplication(sys.argv)
