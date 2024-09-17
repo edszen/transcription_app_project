@@ -20,11 +20,17 @@ class SettingsDialog(QDialog):
         )
         layout.addWidget(self.diarization_checkbox)
 
-        # API Key input
+        # API Key input layout
         api_key_layout = QHBoxLayout()
         api_key_layout.addWidget(QLabel("Hugging Face API Key:"))
         self.api_key_input = QLineEdit()
-        self.api_key_input.setText(self.settings.value("huggingface_api_key", ""))
+        
+        # Load and decrypt the API key if it exists
+        encrypted_key = self.settings.value("huggingface_api_key", "")
+        if encrypted_key:
+            decrypted_key = self.encryption_utils.decrypt(encrypted_key)
+            self.api_key_input.setText(decrypted_key)
+        
         api_key_layout.addWidget(self.api_key_input)
         layout.addLayout(api_key_layout)
 
@@ -36,8 +42,15 @@ class SettingsDialog(QDialog):
         self.setLayout(layout)
         self.setWindowTitle("Transcription Settings")
 
+
     def save_settings(self):
-        self.settings.setValue("use_diarization", self.diarization_checkbox.isChecked())
-        encrypted_key = self.encryption_utils.encrypt(self.api_key_input.text())
+        # Save the checkbox state
+        use_diarization = self.diarization_checkbox.isChecked()
+        self.settings.setValue("use_diarization", use_diarization)
+
+        # Encrypt and save the API key
+        api_key = self.api_key_input.text()
+        encrypted_key = self.encryption_utils.encrypt(api_key)
         self.settings.setValue("huggingface_api_key", encrypted_key)
+
         self.accept()
