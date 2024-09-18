@@ -146,16 +146,36 @@ class TranscriptionApp(QWidget):
         self.progress_bar.setVisible(False)
         self.diarization_progress_bar.setVisible(False)
         self.logger.info("Transcription and processing completed and displayed")
+        
+        # Add a "Save Transcript" button
+        if not hasattr(self, 'save_button'):
+            self.save_button = QPushButton("Save Transcript")
+            self.save_button.clicked.connect(lambda: self.save_transcript())
+            self.layout().addWidget(self.save_button)
+        else:
+            self.save_button.setVisible(True)
+        
+    @pyqtSlot(str)    
+    def save_transcript(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Save Transcript", "", "Text Files (*.txt)")
+        if file_path:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(self.text_area.toPlainText())
+            QMessageBox.information(self, "Success", "Transcript saved successfully!")
 
     @pyqtSlot(int)
     def update_progress(self, value):
         self.progress_bar.setValue(value)
-        if value == 50:
+        if value == 25:
+            self.text_area.setText("Transcribing audio...")
+        elif value == 50:
             if self.settings.value("use_diarization", False, type=bool):
                 self.text_area.setText("Transcription complete. Starting diarization...")
                 self.diarization_progress_bar.setVisible(True)
             else:
                 self.text_area.setText("Transcription complete. Formatting results...")
+        elif value == 75:
+            self.text_area.setText("Aligning transcription with speaker segments...")
         elif value == 100:
             self.text_area.setText("Processing complete. Preparing final transcript...")
 

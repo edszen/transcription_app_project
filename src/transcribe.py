@@ -8,10 +8,25 @@ from pyannote.core import Segment
 import torch
 import time
 import warnings
+import os
 
 import warnings
 import re
 
+os.environ["WHISPER_CACHE_DIR"] = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+
+def get_whisper_model(model_name="large"):
+    cache_dir = os.environ["WHISPER_CACHE_DIR"]
+    model_path = os.path.join(cache_dir, f"{model_name}.en.pt")
+    
+    if not os.path.exists(model_path):
+        print(f"Loading {model_name} model from cache")
+        return whisper.load_model(model_name)
+    
+    else:
+        print(f"Downloading {model_name} model")
+        return whisper.load_model(model_name)
+    
 def filter_warnings(message, category, filename, lineno, file=None, line=None):
     if category == UserWarning:
         if re.match(r"The MPEG_LAYER_III subtype is unknown to TorchAudio", str(message)):
@@ -77,10 +92,10 @@ class Transcriber(QObject):
                 self.error.emit(error_message)
 
     def perform_transcription(self, file_path):
-        model = whisper.load_model("base")
+        model = whisper.load_model("large")
         self.logger.info("Whisper model loaded successfully")
 
-        result = model.transcribe(file_path)
+        result = model.transcribe(file_path, language="en")
         return result["segments"]
 
     def perform_diarization(self, file_path, api_key):
@@ -93,7 +108,7 @@ class Transcriber(QObject):
             self.logger.info(f"Diarization pipeline initialized on device: {device}")
 
             start_time = time.time()
-            diarization = pipeline(file_path)
+            diarization = pipeline(file_path, min_speakers=2, max_speakers=10)
             end_time = time.time()
 
             self.logger.info(f"Diarization completed in {end_time - start_time:.2f} seconds")
@@ -124,12 +139,15 @@ class Transcriber(QObject):
                 if segment['start'] <= turn.end and segment['end'] >= turn.start
             ]
             if relevant_segments:
+                # Merge overlapping segments
                 text = ' '.join([segment['text'].strip() for segment in relevant_segments])
+                # Remove duplicate phrases
+                text = ' '.join(dict.fromkeys(text.split()))
                 formatted_lines.append(f"{turn.start:.2f} - {turn.end:.2f} | Speaker {speaker}: {text}")
-            
-            # Emit progress (50% to 95%)
-            progress = 50 + (i / total_turns) * 45
-            self.diarization_progress.emit(progress)
+                
+                # Emit progress (50% to 95%)
+                progress = 50 + (i / total_turns) * 45
+                self.diarization_progress.emit(progress)
         
         return '\n\n'.join(formatted_lines)
 

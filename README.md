@@ -6,11 +6,16 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
 
 - **Transcription with Whisper**: The app utilizes the Whisper model for audio transcription.
 - **PyQt5-based UI**: Users can upload audio files and view transcripts in a desktop-friendly user interface.
+- **Speaker Diarization with pyannote.audio**: The app can identify and label different speakers in the transcript.
+- **Speaker Identification**: Users can identify and name speakers in the transcript.
+- **Duplicate Removal**: The app removes duplicate phrases to improve transcript readability.
 
 ## Current Status
 The user interface is functional and allows file uploads via a button.
 The transcription is performed in a separate thread to keep the UI responsive.
-Transcript formatting with bold speaker names and proper line breaks is in progress and not yet fully implemented.
+Transcript formatting with speaker names and proper line breaks is implemented.
+Users can identify and rename speakers in the transcript.
+Duplicate phrases are removed to improve transcript clarity.
 
 ## To-Do
 
