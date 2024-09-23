@@ -1,7 +1,8 @@
 import sys
 import threading
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, 
-                             QFileDialog, QMessageBox, QProgressBar, QHBoxLayout)
+                             QFileDialog, QMessageBox, QProgressBar, QHBoxLayout, QDialog,
+                             QLabel, QLineEdit, QDialogButtonBox)
 from PyQt5.QtCore import pyqtSlot, QTimer, QSettings
 from transcribe import Transcriber
 from settings import SettingsDialog
@@ -22,9 +23,38 @@ def filter_warnings(message, category, filename, lineno, file=None, line=None):
 warnings.filterwarnings("always", category=UserWarning)
 warnings.showwarning = filter_warnings
 
+class SpeakerIdentificationDialog(QDialog):
+    def __init__(self, speaker_count, parent=None):
+        super().__init__(parent)
+        self.speaker_count = speaker_count
+        self.speaker_names = {}
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+        for i in range(self.speaker_count):
+            hbox = QHBoxLayout()
+            hbox.addWidget(QLabel(f"Speaker {i+1}:"))
+            line_edit = QLineEdit()
+            hbox.addWidget(line_edit)
+            layout.addLayout(hbox)
+            self.speaker_names[f"Speaker {i+1}"] = line_edit
+
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+
+        self.setLayout(layout)
+        self.setWindowTitle("Identify Speakers")
+
+    def get_speaker_names(self):
+        return {k: v.text() if v.text() else k for k, v in self.speaker_names.items()}
+
 class TranscriptionApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.speaker_names = {}
         self.settings = QSettings("YourCompany", "AudioTranscriptionApp")
         self.encryption_utils = EncryptionUtils()
         self.init_ui()
@@ -33,7 +63,7 @@ class TranscriptionApp(QWidget):
         self.dot_count = 0
         self.setup_logging()
         self.transcriber = None
-        
+        self.raw_text = ""        
     def closeEvent(self, event):
         if self.transcriber:
             self.transcriber.cancel_transcription()
@@ -67,11 +97,22 @@ class TranscriptionApp(QWidget):
         self.help_button = QPushButton('Help')
         self.help_button.clicked.connect(self.show_help)
         
+        self.edit_speakers_button = QPushButton('Edit Speakers')
+        self.edit_speakers_button.clicked.connect(self.edit_speakers)
+        self.edit_speakers_button.setEnabled(False) # Disable the button initially
+        layout.addWidget(self.edit_speakers_button)
+        
+        self.save_button = QPushButton("Save Transcript")
+        self.save_button.clicked.connect(self.save_transcript)
+        self.save_button.setVisible(False)
+        
         layout.addLayout(button_layout)
         layout.addWidget(self.settings_button)
         layout.addWidget(self.progress_bar)
         layout.addWidget(self.diarization_progress_bar)
         layout.addWidget(self.text_area)
+        layout.addWidget(self.edit_speakers_button)
+        layout.addWidget(self.save_button)
         layout.addWidget(self.help_button)
         
         self.setLayout(layout)
@@ -88,7 +129,7 @@ class TranscriptionApp(QWidget):
             self.logger.info("Settings updated")
 
     def upload_and_transcribe(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a)')
+        file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a *.ogg *.mp4);;All Files (*)')
         if file_path:
             self.text_area.setText("Initializing transcription...")
             self.start_transcribing_animation()
@@ -107,6 +148,7 @@ class TranscriptionApp(QWidget):
             self.transcriber.finished.connect(self.update_transcription)
             self.transcriber.progress.connect(self.update_progress)
             self.transcriber.error.connect(self.show_error)
+            self.transcriber.status_updated.connect(self.update_status)
             self.transcriber.diarization_progress.connect(self.update_diarization_progress)
             
             self.logger.info(f"Starting transcription with diarization: {use_diarization}")
@@ -135,33 +177,73 @@ class TranscriptionApp(QWidget):
         self.dot_count = (self.dot_count + 1) % 4
         dots = "." * self.dot_count
         self.text_area.setText(f"Transcribing{dots}")
+        
+    def identify_speakers(self):
+        speaker_pattern = re.compile(r'Speaker (\d+)')
+        speakers = set(speaker_pattern.findall(self.raw_text))
+        
+        dialog = SpeakerIdentificationDialog(len(speakers), self)
+        if dialog.exec_():
+            self.speaker_names = dialog.get_speaker_names()
+            self.format_and_display_transcript()
 
+    def edit_speakers(self):
+        speaker_pattern = re.compile(r'Speaker (\w+)')
+        speakers = set(speaker_pattern.findall(self.raw_text))
+    
+        dialog = SpeakerIdentificationDialog(len(speakers), self)
+        if dialog.exec_():
+            self.speaker_names = dialog.get_speaker_names()
+            self.format_and_display_transcript()
+            
+    def format_and_display_transcript(self):
+        formatted_text = self.raw_text
+        for old_name, new_name in self.speaker_names.items():
+            formatted_text = re.sub(f"{old_name}:", f"{new_name}:", formatted_text)
+        
+        # Update the raw_text with the new speaker names
+        #self.raw_text = formatted_text
+        
+        formatted_text = self.convert_to_html(formatted_text)
+        self.text_area.setHtml(formatted_text)
     @pyqtSlot(str)
     def update_transcription(self, text):
         self.transcribing_timer.stop()
-        formatted_text = self.convert_to_html(text)
-        self.text_area.setHtml(formatted_text)
+        self.raw_text = text
+        self.format_and_display_transcript()
         self.upload_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         self.progress_bar.setVisible(False)
+        self.edit_speakers_button.setEnabled(True)  # Enable the button
         self.diarization_progress_bar.setVisible(False)
         self.logger.info("Transcription and processing completed and displayed")
         
         # Add a "Save Transcript" button
         if not hasattr(self, 'save_button'):
             self.save_button = QPushButton("Save Transcript")
-            self.save_button.clicked.connect(lambda: self.save_transcript())
+            self.save_button.clicked.connect(self.save_transcript)
             self.layout().addWidget(self.save_button)
         else:
             self.save_button.setVisible(True)
         
-    @pyqtSlot(str)    
+        # Add an "Identify Speakers" button
+        if not hasattr(self, 'identify_speakers_button'):
+            self.identify_speakers_button = QPushButton("Identify Speakers")
+            self.identify_speakers_button.clicked.connect(self.identify_speakers)
+            self.layout().addWidget(self.identify_speakers_button)
+        else:
+            self.identify_speakers_button.setVisible(True)
+           
     def save_transcript(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Transcript", "", "Text Files (*.txt)")
         if file_path:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(self.text_area.toPlainText())
             QMessageBox.information(self, "Success", "Transcript saved successfully!")
+
+    @pyqtSlot(str)
+    def update_status(self, status):
+        self.text_area.setText(status)
 
     @pyqtSlot(int)
     def update_progress(self, value):

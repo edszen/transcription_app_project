@@ -2,15 +2,16 @@ import whisper
 from PyQt5.QtCore import QObject, pyqtSignal
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
 from pyannote.audio import Pipeline
 from pyannote.core import Segment
 import torch
 import time
 import warnings
 import os
+from pydub import AudioSegment
+import tempfile
 
-import warnings
 import re
 
 os.environ["WHISPER_CACHE_DIR"] = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
@@ -43,6 +44,7 @@ class Transcriber(QObject):
     finished = pyqtSignal(str)
     progress = pyqtSignal(int)
     error = pyqtSignal(str)
+    status_updated = pyqtSignal(str)
     diarization_progress = pyqtSignal(float)
 
     def __init__(self):
@@ -54,7 +56,53 @@ class Transcriber(QObject):
         try:
             self.cancel_flag = False
             self.logger.info(f"Starting transcription for file: {file_path}")
+            self.status_updated.emit("Loading audio file...")
             
+            # Load audio file
+            audio = AudioSegment.from_file(file_path)
+            total_duration = len(audio) / 1000  # Duration in seconds
+            
+            # Define chunk size (e.g., 5 minutes)
+            chunk_size = 5 * 60 * 1000  # 5 minutes in milliseconds
+            chunks = []
+            
+            
+            # Split audio into chunks
+            for i in range(0, len(audio), chunk_size):
+                chunks.append(audio[i:i + chunk_size])
+                
+            self.logger.info(f"Audio split into {len(chunks)} chunks")
+            self.status_updated.emit(f"Processing {len(chunks)} audio chunks...")
+            
+            # Transcribe chunks in parallel
+            self.model =whisper.load_model("large")
+            transcripts = []
+            
+            def transcribe_chunk(chunk):
+                if self.cancel_flag:
+                    return None
+                self.logger.info(f"Starting transcription of chunk")
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                    chunk_path = temp_file.name
+                    chunk.export(chunk_path, format="wav")
+                    result = self.model.transcribe(chunk_path)
+                os.unlink(chunk_path) # Clean up temporary file
+                self.logger.info(f"Transcription of chunk completed")
+                return result["text"]
+
+            with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+                future_to_chunk = {executor.submit(transcribe_chunk, chunk): i for i, chunk in enumerate(chunks)}
+                for future in as_completed(future_to_chunk):
+                    chunk_index = future_to_chunk[future]
+                    try:
+                        transcript = future.result()
+                        if transcript is not None:
+                            transcripts.append(transcript)
+                            progress = int((chunk_index + 1) / len(chunks) * 50)  # 50% progress for transcription
+                            self.progress.emit(progress)
+                            self.status_updated.emit(f"Transcribed chunk {chunk_index + 1} of {len(chunks)}")
+                    except Exception as exc:
+                        self.logger.error(f"Chunk {chunk_index} generated an exception: {exc}")                                          
             # Step 1: Transcription
             transcript = self.perform_transcription(file_path)
             if self.cancel_flag:
@@ -62,8 +110,12 @@ class Transcriber(QObject):
             self.logger.info("Transcription completed successfully")
             self.progress.emit(50)  # 50% progress after transcription
             
+            full_transcript = " ".join(transcripts)
+            self.logger.info("Transcription completed successfully")
+            
             # Step 2: Diarization (if enabled)
             if use_diarization and api_key:
+                self.status_updated.emit("Starting speech diarization")
                 self.logger.info("Starting speech diarization")
                 try:
                     diarization = self.perform_diarization(file_path, api_key)
@@ -83,6 +135,7 @@ class Transcriber(QObject):
             
             if not self.cancel_flag:
                 self.progress.emit(100)
+                self.status_updated.emit("Transcription completed!")
                 self.finished.emit(formatted_transcript)
             
         except Exception as e:
@@ -90,6 +143,31 @@ class Transcriber(QObject):
                 error_message = f"Error during transcription: {str(e)}"
                 self.logger.error(error_message, exc_info=True)
                 self.error.emit(error_message)
+
+    def load_audio(self, file_path):
+        """Load audio file regardless of its format."""
+        try:
+            # Attempt to load the file directly
+            audio = AudioSegment.from_file(file_path)
+        except Exception as e:
+            # If direct loading fails, try to infer the format from the file extension
+            _, ext = os.path.splitext(file_path)
+            format = ext[1:].lower()  # Remove the dot and convert to lowercase
+            try:
+                if format == 'mp3':
+                    audio = AudioSegment.from_mp3(file_path)
+                elif format == 'wav':
+                    audio = AudioSegment.from_wav(file_path)
+                elif format == 'ogg':
+                    audio = AudioSegment.from_ogg(file_path)
+                elif format in ['m4a', 'mp4']:
+                    audio = AudioSegment.from_file(file_path, "m4a")
+                else:
+                    raise ValueError(f"Unsupported audio format: {format}")
+            except Exception as e:
+                raise ValueError(f"Failed to load audio file: {str(e)}")
+        
+        return audio
 
     def perform_transcription(self, file_path):
         model = whisper.load_model("large")
@@ -142,7 +220,7 @@ class Transcriber(QObject):
                 # Merge overlapping segments
                 text = ' '.join([segment['text'].strip() for segment in relevant_segments])
                 # Remove duplicate phrases
-                text = ' '.join(dict.fromkeys(text.split()))
+                text = self.remove_duplicates(text)
                 formatted_lines.append(f"{turn.start:.2f} - {turn.end:.2f} | Speaker {speaker}: {text}")
                 
                 # Emit progress (50% to 95%)
@@ -150,6 +228,14 @@ class Transcriber(QObject):
                 self.diarization_progress.emit(progress)
         
         return '\n\n'.join(formatted_lines)
+    
+    def remove_duplicates(self, text):
+        words = text.split()
+        deduped_words = []
+        for i, word in enumerate(words):
+            if i == 0 or word != words[i-1]:
+                deduped_words.append(word)
+        return ' '.join(deduped_words)
 
     def cancel_transcription(self):
         self.cancel_flag = True

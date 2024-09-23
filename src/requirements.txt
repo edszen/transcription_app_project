@@ -106,3 +106,5 @@ typing_extensions==4.12.2
 tzdata==2024.1
 urllib3==2.2.3
 yarl==1.11.1
+faster-whisper==0.10.0
+silero==0.4.1
