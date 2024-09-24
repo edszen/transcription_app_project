@@ -1,56 +1,37 @@
-import whisper
-from PyQt5.QtCore import QObject, pyqtSignal
 import logging
 import threading
-from concurrent.futures import ThreadPoolExecutor, TimeoutError, as_completed
-from pyannote.audio import Pipeline
-from pyannote.core import Segment
-import torch
-import time
-import warnings
-import os
+import numpy as np
+from faster_whisper import WhisperModel
 from pydub import AudioSegment
 import tempfile
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from PyQt5.QtCore import QObject, pyqtSignal
+import torch
+import webrtcvad
 
-import re
-
-os.environ["WHISPER_CACHE_DIR"] = os.path.join(os.path.expanduser("~"), ".cache", "whisper")
-
-def get_whisper_model(model_name="large"):
-    cache_dir = os.environ["WHISPER_CACHE_DIR"]
-    model_path = os.path.join(cache_dir, f"{model_name}.en.pt")
-    
-    if not os.path.exists(model_path):
-        print(f"Loading {model_name} model from cache")
-        return whisper.load_model(model_name)
-    
-    else:
-        print(f"Downloading {model_name} model")
-        return whisper.load_model(model_name)
-    
-def filter_warnings(message, category, filename, lineno, file=None, line=None):
-    if category == UserWarning:
-        if re.match(r"The MPEG_LAYER_III subtype is unknown to TorchAudio", str(message)):
-            return None
-    return True
-
-warnings.filterwarnings("always", category=UserWarning)
-warnings.showwarning = filter_warnings
-
-class TranscriptionError(Exception):
-    pass
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Transcriber(QObject):
     finished = pyqtSignal(str)
     progress = pyqtSignal(int)
     error = pyqtSignal(str)
     status_updated = pyqtSignal(str)
-    diarization_progress = pyqtSignal(float)
 
     def __init__(self):
         super().__init__()
         self.cancel_flag = False
         self.logger = logging.getLogger(__name__)
+        
+        # Initialize Faster Whisper model
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if device == "cuda" else "int8"
+        self.whisper_model = WhisperModel("small", device=device, compute_type=compute_type)
+        
+        # Initialize WebRTC VAD
+        self.vad = webrtcvad.Vad(1)  # Mode 1 is less aggressive
 
     def transcribe(self, file_path, use_diarization=False, api_key=None):
         try:
@@ -59,84 +40,37 @@ class Transcriber(QObject):
             self.status_updated.emit("Loading audio file...")
             
             # Load audio file
-            audio = AudioSegment.from_file(file_path)
-            total_duration = len(audio) / 1000  # Duration in seconds
+            audio = self.load_audio(file_path)
+            self.logger.info(f"Audio file loaded, duration: {len(audio)/1000:.2f} seconds")
             
-            # Define chunk size (e.g., 5 minutes)
-            chunk_size = 5 * 60 * 1000  # 5 minutes in milliseconds
-            chunks = []
+            # Apply VAD
+            self.status_updated.emit("Applying Voice Activity Detection...")
+            try:
+                speech_segments = self.apply_vad(audio)
+                self.logger.info(f"VAD applied, found {len(speech_segments)} speech segments")
+            except Exception as e:
+                self.logger.warning(f"VAD failed, proceeding with full audio: {str(e)}")
+                speech_segments = [audio]
+            self.progress.emit(20)
             
+            # Transcribe speech segments
+            transcripts = self.transcribe_segments(speech_segments)
+            self.logger.info(f"Transcription completed, {len(transcripts)} segments processed")
+            self.progress.emit(80)
             
-            # Split audio into chunks
-            for i in range(0, len(audio), chunk_size):
-                chunks.append(audio[i:i + chunk_size])
-                
-            self.logger.info(f"Audio split into {len(chunks)} chunks")
-            self.status_updated.emit(f"Processing {len(chunks)} audio chunks...")
+            # Combine transcripts
+            full_transcript = self.combine_transcripts(transcripts)
+            self.logger.info(f"Combined transcript length: {len(full_transcript)}")
             
-            # Transcribe chunks in parallel
-            self.model =whisper.load_model("large")
-            transcripts = []
-            
-            def transcribe_chunk(chunk):
-                if self.cancel_flag:
-                    return None
-                self.logger.info(f"Starting transcription of chunk")
-                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-                    chunk_path = temp_file.name
-                    chunk.export(chunk_path, format="wav")
-                    result = self.model.transcribe(chunk_path)
-                os.unlink(chunk_path) # Clean up temporary file
-                self.logger.info(f"Transcription of chunk completed")
-                return result["text"]
+            # TODO: Implement diarization (will be done in next steps)
+            if use_diarization:
+                self.logger.info("Diarization requested, but not yet implemented")
+                # This is where we'll add diarization in the next step
 
-            with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
-                future_to_chunk = {executor.submit(transcribe_chunk, chunk): i for i, chunk in enumerate(chunks)}
-                for future in as_completed(future_to_chunk):
-                    chunk_index = future_to_chunk[future]
-                    try:
-                        transcript = future.result()
-                        if transcript is not None:
-                            transcripts.append(transcript)
-                            progress = int((chunk_index + 1) / len(chunks) * 50)  # 50% progress for transcription
-                            self.progress.emit(progress)
-                            self.status_updated.emit(f"Transcribed chunk {chunk_index + 1} of {len(chunks)}")
-                    except Exception as exc:
-                        self.logger.error(f"Chunk {chunk_index} generated an exception: {exc}")                                          
-            # Step 1: Transcription
-            transcript = self.perform_transcription(file_path)
-            if self.cancel_flag:
-                raise TranscriptionError("Transcription cancelled by user")
-            self.logger.info("Transcription completed successfully")
-            self.progress.emit(50)  # 50% progress after transcription
-            
-            full_transcript = " ".join(transcripts)
-            self.logger.info("Transcription completed successfully")
-            
-            # Step 2: Diarization (if enabled)
-            if use_diarization and api_key:
-                self.status_updated.emit("Starting speech diarization")
-                self.logger.info("Starting speech diarization")
-                try:
-                    diarization = self.perform_diarization(file_path, api_key)
-                    if self.cancel_flag:
-                        raise TranscriptionError("Transcription cancelled by user")
-                    if diarization is not None:
-                        formatted_transcript = self.format_transcript_with_diarization(transcript, diarization)
-                        self.logger.info("Diarization and formatting completed successfully")
-                    else:
-                        raise Exception("Diarization returned None")
-                except Exception as e:
-                    self.logger.error(f"Diarization failed: {str(e)}", exc_info=True)
-                    formatted_transcript = self.format_transcript(transcript)
-                    self.logger.info("Falling back to non-diarized formatting")
-            else:
-                formatted_transcript = self.format_transcript(transcript)
-            
             if not self.cancel_flag:
                 self.progress.emit(100)
                 self.status_updated.emit("Transcription completed!")
-                self.finished.emit(formatted_transcript)
+                self.finished.emit(full_transcript)
             
         except Exception as e:
             if not self.cancel_flag:
@@ -145,153 +79,95 @@ class Transcriber(QObject):
                 self.error.emit(error_message)
 
     def load_audio(self, file_path):
-        """Load audio file regardless of its format."""
         try:
-            # Attempt to load the file directly
             audio = AudioSegment.from_file(file_path)
+            return audio
         except Exception as e:
-            # If direct loading fails, try to infer the format from the file extension
-            _, ext = os.path.splitext(file_path)
-            format = ext[1:].lower()  # Remove the dot and convert to lowercase
+            self.logger.error(f"Failed to load audio file: {str(e)}")
+            raise ValueError(f"Failed to load audio file: {str(e)}")
+        
+    def apply_vad(self, audio):
+        # Ensure audio is mono and at 16000Hz
+        audio = audio.set_channels(1).set_frame_rate(16000)
+        
+        # Convert audio to the format expected by WebRTC VAD
+        audio_array = np.array(audio.get_array_of_samples())
+        audio_float32 = audio_array.astype(np.float32) / 32768.0
+        
+        # Set frame duration and process audio
+        frame_duration = 30  # ms
+        frames = self.frame_generator(audio_float32, frame_duration)
+        speech_frames = []
+        for frame in frames:
             try:
-                if format == 'mp3':
-                    audio = AudioSegment.from_mp3(file_path)
-                elif format == 'wav':
-                    audio = AudioSegment.from_wav(file_path)
-                elif format == 'ogg':
-                    audio = AudioSegment.from_ogg(file_path)
-                elif format in ['m4a', 'mp4']:
-                    audio = AudioSegment.from_file(file_path, "m4a")
-                else:
-                    raise ValueError(f"Unsupported audio format: {format}")
+                if self.vad.is_speech(frame.tobytes(), 16000):
+                    speech_frames.append(frame)
             except Exception as e:
-                raise ValueError(f"Failed to load audio file: {str(e)}")
+                self.logger.warning(f"Error processing VAD frame: {str(e)}")
+                continue
         
-        return audio
+        # Convert speech frames back to AudioSegment
+        speech_segments = [
+            AudioSegment(
+                frame.tobytes(),
+                frame_rate=16000,
+                sample_width=2,
+                channels=1
+            )
+            for frame in speech_frames
+        ]
+        
+        return speech_segments
 
-    def perform_transcription(self, file_path):
-        model = whisper.load_model("large")
-        self.logger.info("Whisper model loaded successfully")
+    def frame_generator(self, audio, frame_duration):
+        n = int(16000 * (frame_duration / 1000.0))
+        offset = 0
+        while offset + n < len(audio):
+            yield audio[offset:offset + n]
+            offset += n
 
-        result = model.transcribe(file_path, language="en")
-        return result["segments"]
+    def transcribe_segments(self, segments):
+        transcripts = []
+        total_segments = len(segments)
+        
+        with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+            future_to_segment = {executor.submit(self.transcribe_segment, segment, i): i for i, segment in enumerate(segments)}
+            for future in as_completed(future_to_segment):
+                segment_index = future_to_segment[future]
+                try:
+                    transcript = future.result()
+                    if transcript:
+                        transcripts.append(transcript)
+                    progress = int(20 + (segment_index + 1) / total_segments * 60)  # 20% to 80% progress
+                    self.progress.emit(progress)
+                    self.status_updated.emit(f"Transcribed segment {segment_index + 1} of {total_segments}")
+                except Exception as e:
+                    self.logger.error(f"Segment {segment_index} generated an exception: {e}")
+        
+        return transcripts
 
-    def perform_diarization(self, file_path, api_key):
-        try:
-            pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1",
-                                                use_auth_token=api_key)
-            
-            device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
-            pipeline = pipeline.to(device)
-            self.logger.info(f"Diarization pipeline initialized on device: {device}")
-
-            start_time = time.time()
-            diarization = pipeline(file_path, min_speakers=2, max_speakers=10)
-            end_time = time.time()
-
-            self.logger.info(f"Diarization completed in {end_time - start_time:.2f} seconds")
-            self.logger.info(f"Diarization result type: {type(diarization)}")
-            self.logger.info(f"Number of speakers detected: {len(set(diarization.labels()))}")
-            
-            # Print the first few results (for logging purposes)
-            for turn, _, speaker in list(diarization.itertracks(yield_label=True))[:5]:
-                self.logger.info(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
-            
-            return diarization
-        except Exception as e:
-            self.logger.error(f"Diarization error: {str(e)}", exc_info=True)
+    def transcribe_segment(self, segment, segment_index):
+        if self.cancel_flag:
             return None
-
-    def format_transcript(self, transcript):
-        return "\n\n".join([f"{segment['start']:.2f} - {segment['end']:.2f}: {segment['text']}" for segment in transcript])
-
-    def format_transcript_with_diarization(self, transcript, diarization):
-        if diarization is None:
-            return self.format_transcript(transcript)
-        
-        formatted_lines = []
-        total_turns = len(list(diarization.itertracks(yield_label=True)))
-        for i, (turn, _, speaker) in enumerate(diarization.itertracks(yield_label=True)):
-            relevant_segments = [
-                segment for segment in transcript
-                if segment['start'] <= turn.end and segment['end'] >= turn.start
-            ]
-            if relevant_segments:
-                # Merge overlapping segments
-                text = ' '.join([segment['text'].strip() for segment in relevant_segments])
-                # Remove duplicate phrases
-                text = self.remove_duplicates(text)
-                formatted_lines.append(f"{turn.start:.2f} - {turn.end:.2f} | Speaker {speaker}: {text}")
-                
-                # Emit progress (50% to 95%)
-                progress = 50 + (i / total_turns) * 45
-                self.diarization_progress.emit(progress)
-        
-        return '\n\n'.join(formatted_lines)
+        self.logger.info(f"Starting transcription of segment {segment_index}")
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            segment_path = temp_file.name
+            segment.export(segment_path, format="wav")
+            segments, _ = self.whisper_model.transcribe(segment_path, language="en")
+            result = " ".join([segment.text for segment in segments])
+        os.unlink(segment_path)  # Clean up temporary file
+        self.logger.info(f"Transcription of segment {segment_index} completed")
+        return result
     
-    def remove_duplicates(self, text):
-        words = text.split()
-        deduped_words = []
-        for i, word in enumerate(words):
-            if i == 0 or word != words[i-1]:
-                deduped_words.append(word)
-        return ' '.join(deduped_words)
+    def combine_transcripts(self, transcripts):
+        return " ".join(transcripts)
 
     def cancel_transcription(self):
         self.cancel_flag = True
         self.logger.info("Transcription cancelled")
 
-def test_diarization(audio_file, api_key):
-    print(f"Testing diarization on file: {audio_file}")
-    print(f"PyTorch version: {torch.__version__}")
-    print(f"CUDA available: {torch.cuda.is_available()}")
-    print(f"MPS available: {torch.backends.mps.is_available() if hasattr(torch.backends, 'mps') else 'N/A'}")
-
-    try:
-        pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1",
-                                            use_auth_token=api_key)
-        
-        device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
-        pipeline = pipeline.to(device)
-        print(f"Using device: {device}")
-
-        start_time = time.time()
-        diarization = pipeline(audio_file)
-        end_time = time.time()
-
-        print(f"Diarization completed in {end_time - start_time:.2f} seconds")
-        
-        # Print the first few results
-        for turn, _, speaker in list(diarization.itertracks(yield_label=True))[:5]:
-            print(f"start={turn.start:.1f}s stop={turn.end:.1f}s speaker_{speaker}")
-        
-        print("Diarization successful!")
-        return True
-    except Exception as e:
-        print(f"An error occurred during diarization: {str(e)}")
-        return False
+# Remove the test_diarization function as it's no longer needed in this file
 
 if __name__ == "__main__":
-    import sys
-    from PyQt5.QtCore import QSettings
-    from encryption_utils import EncryptionUtils
-
-    if len(sys.argv) < 2:
-        print("Usage: python transcribe.py /path/to/audio/file.mp3")
-        sys.exit(1)
-    
-    audio_file = sys.argv[1]
-    
-    # Load and decrypt the API key
-    settings = QSettings("YourCompany", "AudioTranscriptionApp")
-    encryption_utils = EncryptionUtils()
-    encrypted_key = settings.value("huggingface_api_key", "")
-    if not encrypted_key:
-        print("Error: No API key found in settings. Please set up your API key first.")
-        sys.exit(1)
-    
-    api_key = encryption_utils.decrypt(encrypted_key)
-    
-    success = test_diarization(audio_file, api_key)
-    if not success:
-        print("Diarization test failed. Please check the error messages above.")
+    # This section can be used for testing the Transcriber class directly
+    pass

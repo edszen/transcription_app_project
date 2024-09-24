@@ -106,5 +106,7 @@ typing_extensions==4.12.2
 tzdata==2024.1
 urllib3==2.2.3
 yarl==1.11.1
-faster-whisper==0.10.0
+faster-whisper==1.0.1
 silero==0.4.1
+webrtcvad==2.0.10
+SpeechRecognition==3.10.0
