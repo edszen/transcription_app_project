@@ -106,13 +106,28 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
    python main.py
    ```
 
+### Hugging Face API Key Setup
+
+To use Pyannote VAD, you need to set up a Hugging Face API key:
+
+1. Visit [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) to create an API token.
+2. Accept the user conditions for 'pyannote/voice-activity-detection' at [https://huggingface.co/pyannote/voice-activity-detection](https://huggingface.co/pyannote/voice-activity-detection).
+3. In the application, go to Settings and enter your API key in the designated field.
+
+## How to Run
+
+Run the application:
+```bash
+python main.py
+```
+
 ## Troubleshooting
 
 If you encounter any issues:
 
-1. Ensure you have the latest version of the app
-2. Check that your API key is entered correctly (if applicable)
-3. Verify that you have accepted any necessary model licenses
-4. If VAD fails, the application will attempt to transcribe the full audio
+1. Ensure you have the latest version of the app.
+2. Check that your Hugging Face API key is entered correctly in the settings.
+3. Verify that you have accepted the necessary model licenses on Hugging Face.
+4. If Pyannote VAD fails, the application will automatically fall back to energy-based VAD.
 
 For further assistance, please refer to the error messages in the application or contact support.

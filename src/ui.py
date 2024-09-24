@@ -320,17 +320,31 @@ class SettingsDialog(QDialog):
         layout.addLayout(vad_layout)
 
         # API Key input layout
-        api_key_layout = QHBoxLayout()
+        api_key_layout = QVBoxLayout()
         api_key_layout.addWidget(QLabel("Hugging Face API Key:"))
         self.api_key_input = QLineEdit()
         
         # Load and decrypt the API key if it exists
         encrypted_key = self.settings.value("huggingface_api_key", "")
         if encrypted_key:
-            decrypted_key = self.encryption_utils.decrypt(encrypted_key)
-            self.api_key_input.setText(decrypted_key)
-        
+            try:
+                decrypted_key = self.encryption_utils.decrypt(encrypted_key)
+                self.api_key_input.setText(decrypted_key)
+            except Exception as e:
+                QMessageBox.warning(self, "Decryption Error", 
+                                    "Failed to decrypt the stored API key. Please enter it again.")
+                self.settings.remove("huggingface_api_key")  # Remove the invalid encrypted key
+                
         api_key_layout.addWidget(self.api_key_input)
+        
+        # Add instructions for obtaining API key
+        instructions = QLabel("To use Pyannote VAD, you need a Hugging Face API key. "
+                              "Visit https://huggingface.co/settings/tokens to create one. "
+                              "Make sure to accept the user conditions for 'pyannote/voice-activity-detection' "
+                              "at https://huggingface.co/pyannote/voice-activity-detection")
+        instructions.setWordWrap(True)
+        api_key_layout.addWidget(instructions)
+        
         layout.addLayout(api_key_layout)
 
         # Save button
@@ -356,10 +370,18 @@ class SettingsDialog(QDialog):
             self.settings.setValue("vad_method", "pyannote")
 
         # Encrypt and save the API key
-        api_key = self.api_key_input.text()
-        encrypted_key = self.encryption_utils.encrypt(api_key)
-        self.settings.setValue("huggingface_api_key", encrypted_key)
+        api_key = self.api_key_input.text().strip()
+        if api_key:
+            try:
+                encrypted_key = self.encryption_utils.encrypt(api_key)
+                self.settings.setValue("huggingface_api_key", encrypted_key)
+            except Exception as e:
+                QMessageBox.critical(self, "Encryption Error", f"Failed to encrypt API key: {str(e)}")
+                return
+        else:
+            self.settings.remove("huggingface_api_key")  # Remove the key if the input is empty
 
+        QMessageBox.information(self, "Settings Saved", "Your settings have been saved successfully.")
         self.accept()
 
 if __name__ == '__main__':

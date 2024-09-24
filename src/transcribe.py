@@ -3,12 +3,14 @@ import threading
 import numpy as np
 from faster_whisper import WhisperModel
 from pydub import AudioSegment
+from pydub.silence import detect_nonsilent
 import tempfile
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PyQt5.QtCore import QObject, pyqtSignal
 import torch
 from pyannote.audio import Pipeline
+from encryption_utils import EncryptionUtils
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +26,7 @@ class Transcriber(QObject):
         super().__init__()
         self.cancel_flag = False
         self.logger = logging.getLogger(__name__)
+        self.encryption_utils = EncryptionUtils()
         
         # Initialize Faster Whisper model
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,7 +36,7 @@ class Transcriber(QObject):
         # Initialize pyannote VAD
         self.vad_pipeline = None  # We'll initialize this later with the API token
 
-    def transcribe(self, file_path, use_diarization=False, api_key=None, vad_method='pyannote'):
+    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None, vad_method='pyannote'):
         try:
             self.cancel_flag = False
             self.logger.info(f"Starting transcription for file: {file_path}")
@@ -46,7 +49,20 @@ class Transcriber(QObject):
             # Apply VAD
             self.status_updated.emit("Applying Voice Activity Detection...")
             if vad_method == 'pyannote':
-                speech_segments = self.apply_pyannote_vad(file_path, api_key)
+                try:
+                    api_key = self.encryption_utils.decrypt(encrypted_api_key) if encrypted_api_key else ""
+                except Exception as e:
+                    self.logger.error(f"Failed to decrypt API key: {str(e)}")
+                    self.status_updated.emit("Failed to decrypt API key. Falling back to energy-based VAD.")
+                    vad_method = 'energy'
+                    api_key = ""
+                
+                if api_key:
+                    speech_segments = self.apply_pyannote_vad(file_path, api_key)
+                else:
+                    self.logger.warning("No valid API key for Pyannote VAD. Falling back to energy-based VAD.")
+                    self.status_updated.emit("No valid API key. Falling back to energy-based VAD.")
+                    speech_segments = self.apply_energy_vad(audio)
             elif vad_method == 'energy':
                 speech_segments = self.apply_energy_vad(audio)
             else:
@@ -110,14 +126,22 @@ class Transcriber(QObject):
             self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
             return self.apply_energy_vad(AudioSegment.from_file(file_path))
 
-    def apply_energy_vad(self, audio, threshold=-30, min_silence_len=300):
-        audio = audio.set_channels(1)
-        chunks = audio.split_to_mono()[0].detect_nonsilent(
-            min_silence_len=min_silence_len,
-            silence_thresh=threshold
-        )
-        speech_segments = [audio[start:end] for start, end in chunks]
-        return speech_segments
+    def apply_energy_vad(self, audio, min_silence_len=300, silence_thresh=-40):
+        try:
+            # Ensure audio is mono
+            audio = audio.set_channels(1)
+            
+            # Use detect_nonsilent from pydub.silence
+            nonsilent_ranges = detect_nonsilent(audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh)
+            
+            # Create speech segments based on non-silent ranges
+            speech_segments = [audio[start:end] for start, end in nonsilent_ranges]
+            
+            return speech_segments
+        except Exception as e:
+            self.logger.error(f"Error in energy-based VAD: {str(e)}")
+            self.status_updated.emit("Energy-based VAD failed. Transcribing full audio.")
+            return [audio]
 
     def transcribe_segments(self, segments):
         transcripts = []
