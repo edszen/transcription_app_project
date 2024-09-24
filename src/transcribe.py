@@ -8,7 +8,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PyQt5.QtCore import QObject, pyqtSignal
 import torch
-import webrtcvad
+from pyannote.audio import Pipeline
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -30,10 +30,10 @@ class Transcriber(QObject):
         compute_type = "float16" if device == "cuda" else "int8"
         self.whisper_model = WhisperModel("small", device=device, compute_type=compute_type)
         
-        # Initialize WebRTC VAD
-        self.vad = webrtcvad.Vad(1)  # Mode 1 is less aggressive
+        # Initialize pyannote VAD
+        self.vad_pipeline = None  # We'll initialize this later with the API token
 
-    def transcribe(self, file_path, use_diarization=False, api_key=None):
+    def transcribe(self, file_path, use_diarization=False, api_key=None, vad_method='pyannote'):
         try:
             self.cancel_flag = False
             self.logger.info(f"Starting transcription for file: {file_path}")
@@ -45,12 +45,14 @@ class Transcriber(QObject):
             
             # Apply VAD
             self.status_updated.emit("Applying Voice Activity Detection...")
-            try:
-                speech_segments = self.apply_vad(audio)
-                self.logger.info(f"VAD applied, found {len(speech_segments)} speech segments")
-            except Exception as e:
-                self.logger.warning(f"VAD failed, proceeding with full audio: {str(e)}")
-                speech_segments = [audio]
+            if vad_method == 'pyannote':
+                speech_segments = self.apply_pyannote_vad(file_path, api_key)
+            elif vad_method == 'energy':
+                speech_segments = self.apply_energy_vad(audio)
+            else:
+                speech_segments = [audio]  # No VAD, use full audio
+            
+            self.logger.info(f"VAD applied, found {len(speech_segments)} speech segments")
             self.progress.emit(20)
             
             # Transcribe speech segments
@@ -86,45 +88,36 @@ class Transcriber(QObject):
             self.logger.error(f"Failed to load audio file: {str(e)}")
             raise ValueError(f"Failed to load audio file: {str(e)}")
         
-    def apply_vad(self, audio):
-        # Ensure audio is mono and at 16000Hz
-        audio = audio.set_channels(1).set_frame_rate(16000)
-        
-        # Convert audio to the format expected by WebRTC VAD
-        audio_array = np.array(audio.get_array_of_samples())
-        audio_float32 = audio_array.astype(np.float32) / 32768.0
-        
-        # Set frame duration and process audio
-        frame_duration = 30  # ms
-        frames = self.frame_generator(audio_float32, frame_duration)
-        speech_frames = []
-        for frame in frames:
-            try:
-                if self.vad.is_speech(frame.tobytes(), 16000):
-                    speech_frames.append(frame)
-            except Exception as e:
-                self.logger.warning(f"Error processing VAD frame: {str(e)}")
-                continue
-        
-        # Convert speech frames back to AudioSegment
-        speech_segments = [
-            AudioSegment(
-                frame.tobytes(),
-                frame_rate=16000,
-                sample_width=2,
-                channels=1
-            )
-            for frame in speech_frames
-        ]
-        
-        return speech_segments
+    def apply_pyannote_vad(self, file_path, api_key):
+        try:
+            if self.vad_pipeline is None:
+                self.vad_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection",
+                                                            use_auth_token=api_key)
+            
+            vad_results = self.vad_pipeline(file_path)
+            
+            audio = AudioSegment.from_file(file_path)
+            speech_segments = []
+            for speech_turn, _, _ in vad_results.itertracks(yield_label=True):
+                start_ms = int(speech_turn.start * 1000)
+                end_ms = int(speech_turn.end * 1000)
+                segment = audio[start_ms:end_ms]
+                speech_segments.append(segment)
+            
+            return speech_segments
+        except Exception as e:
+            self.logger.error(f"Error in pyannote VAD: {str(e)}")
+            self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
+            return self.apply_energy_vad(AudioSegment.from_file(file_path))
 
-    def frame_generator(self, audio, frame_duration):
-        n = int(16000 * (frame_duration / 1000.0))
-        offset = 0
-        while offset + n < len(audio):
-            yield audio[offset:offset + n]
-            offset += n
+    def apply_energy_vad(self, audio, threshold=-30, min_silence_len=300):
+        audio = audio.set_channels(1)
+        chunks = audio.split_to_mono()[0].detect_nonsilent(
+            min_silence_len=min_silence_len,
+            silence_thresh=threshold
+        )
+        speech_segments = [audio[start:end] for start, end in chunks]
+        return speech_segments
 
     def transcribe_segments(self, segments):
         transcripts = []
@@ -165,8 +158,6 @@ class Transcriber(QObject):
     def cancel_transcription(self):
         self.cancel_flag = True
         self.logger.info("Transcription cancelled")
-
-# Remove the test_diarization function as it's no longer needed in this file
 
 if __name__ == "__main__":
     # This section can be used for testing the Transcriber class directly

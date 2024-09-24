@@ -2,7 +2,7 @@ import sys
 import threading
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, 
                              QFileDialog, QMessageBox, QProgressBar, QHBoxLayout, QDialog,
-                             QLabel, QLineEdit, QDialogButtonBox)
+                             QLabel, QLineEdit, QDialogButtonBox, QCheckBox, QComboBox)
 from PyQt5.QtCore import pyqtSlot, QTimer, QSettings, QObject
 from transcribe import Transcriber
 from settings import SettingsDialog
@@ -143,6 +143,7 @@ class TranscriptionApp(QWidget):
             use_diarization = self.settings.value("use_diarization", False, type=bool)
             api_key_encrypted = self.settings.value("huggingface_api_key", "")
             api_key = self.encryption_utils.decrypt(api_key_encrypted) if api_key_encrypted else ""
+            vad_method = self.settings.value("vad_method", "pyannote")
             
             self.transcriber = Transcriber()
             self.transcriber.finished.connect(self.update_transcription)
@@ -150,9 +151,9 @@ class TranscriptionApp(QWidget):
             self.transcriber.error.connect(self.show_error)
             self.transcriber.status_updated.connect(self.update_status)
             
-            self.logger.info(f"Starting transcription with diarization: {use_diarization}")
+            self.logger.info(f"Starting transcription with diarization: {use_diarization}, VAD method: {vad_method}")
             self.thread = threading.Thread(target=self.transcriber.transcribe, 
-                                        args=(file_path, use_diarization, api_key))
+                                        args=(file_path, use_diarization, api_key, vad_method))
             self.thread.start()
         else:
             QMessageBox.warning(self, 'Error', 'No file selected')
@@ -285,6 +286,81 @@ class TranscriptionApp(QWidget):
 
         html_content = ''.join(formatted_lines)
         return f"{css}<body>{html_content}</body>"
+
+class SettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.settings = QSettings("YourCompany", "AudioTranscriptionApp")
+        self.encryption_utils = EncryptionUtils()
+        self.init_ui()
+
+    def init_ui(self):
+        layout = QVBoxLayout()
+
+        # Diarization checkbox
+        self.diarization_checkbox = QCheckBox("Enable Speaker Diarization")
+        self.diarization_checkbox.setChecked(
+            self.settings.value("use_diarization", False, type=bool)
+        )
+        layout.addWidget(self.diarization_checkbox)
+
+        # VAD method selection
+        vad_layout = QHBoxLayout()
+        vad_layout.addWidget(QLabel("VAD Method:"))
+        self.vad_combo = QComboBox()
+        self.vad_combo.addItems(["No VAD", "Energy-based VAD", "Pyannote VAD"])
+        current_vad = self.settings.value("vad_method", "pyannote")
+        if current_vad == "none":
+            self.vad_combo.setCurrentIndex(0)
+        elif current_vad == "energy":
+            self.vad_combo.setCurrentIndex(1)
+        elif current_vad == "pyannote":
+            self.vad_combo.setCurrentIndex(2)
+        vad_layout.addWidget(self.vad_combo)
+        layout.addLayout(vad_layout)
+
+        # API Key input layout
+        api_key_layout = QHBoxLayout()
+        api_key_layout.addWidget(QLabel("Hugging Face API Key:"))
+        self.api_key_input = QLineEdit()
+        
+        # Load and decrypt the API key if it exists
+        encrypted_key = self.settings.value("huggingface_api_key", "")
+        if encrypted_key:
+            decrypted_key = self.encryption_utils.decrypt(encrypted_key)
+            self.api_key_input.setText(decrypted_key)
+        
+        api_key_layout.addWidget(self.api_key_input)
+        layout.addLayout(api_key_layout)
+
+        # Save button
+        save_button = QPushButton("Save Settings")
+        save_button.clicked.connect(self.save_settings)
+        layout.addWidget(save_button)
+
+        self.setLayout(layout)
+        self.setWindowTitle("Transcription Settings")
+
+    def save_settings(self):
+        # Save the checkbox state
+        use_diarization = self.diarization_checkbox.isChecked()
+        self.settings.setValue("use_diarization", use_diarization)
+
+        # Save VAD method
+        vad_index = self.vad_combo.currentIndex()
+        if vad_index == 0:
+            self.settings.setValue("vad_method", "none")
+        elif vad_index == 1:
+            self.settings.setValue("vad_method", "energy")
+        elif vad_index == 2:
+            self.settings.setValue("vad_method", "pyannote")
+
+        # Encrypt and save the API key
+        api_key = self.api_key_input.text()
+        encrypted_key = self.encryption_utils.encrypt(api_key)
+        self.settings.setValue("huggingface_api_key", encrypted_key)
+
+        self.accept()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

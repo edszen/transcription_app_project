@@ -14,7 +14,9 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
 - The transcription is performed in a separate thread to keep the UI responsive.
 - Transcript formatting with bold speaker names and proper line breaks is implemented.
 - Voice Activity Detection (VAD) is implemented with improved error handling.
-- If VAD fails, the system falls back to processing the full audio.
+- If pyannote VAD fails, the system falls back to energy-based VAD.
+- Users can now select their preferred VAD method in the settings.
+
 
 ## To-Do
 
