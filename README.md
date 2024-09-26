@@ -1,23 +1,58 @@
 # Audio Transcription Application
 
-This is an audio transcription application for **MacOS** and **Windows**. It uses **Python**, **PyQt5** for the UI, and **Whisper** for audio transcription. The application allows users to upload audio files, transcribe them, and view transcripts.
+This is an audio transcription application for **MacOS** and **Windows**. It uses **Python**, **PyQt5** for the UI, and **Faster Whisper** for audio transcription. The application allows users to upload audio files, transcribe them, and view transcripts with speaker diarization.
 
 ## Features
 
-- **Transcription with Whisper**: The app utilizes the Whisper model for audio transcription.
+- **Transcription with Faster Whisper**: The app utilizes the Faster Whisper model for efficient audio transcription.
 - **PyQt5-based UI**: Users can upload audio files and view transcripts in a desktop-friendly user interface.
-- **Voice Activity Detection (VAD)**: Implements WebRTC VAD for improved transcription accuracy.
+- **Speaker Diarization**: Implements WhisperX for speaker diarization.
+- **Voice Activity Detection (VAD)**: Uses Pyannote.audio for VAD, with a fallback to energy-based VAD.
+- **Chunked Processing**: Handles long audio files by processing them in chunks.
 - **Robust Error Handling**: Gracefully handles errors during the transcription process.
 
 ## Current Status
 - The user interface is functional and allows file uploads via a button.
-- The transcription is performed in a separate thread to keep the UI responsive.
-- Transcript formatting with bold speaker names and proper line breaks is implemented.
-- Voice Activity Detection (VAD) is implemented with improved error handling.
-- If pyannote VAD fails, the system falls back to energy-based VAD.
-- Users can now select their preferred VAD method in the settings.
+- Transcription is performed in chunks for efficient processing of longer files.
+- Speaker diarization is integrated using WhisperX.
+- VAD is implemented with Pyannote.audio, falling back to energy-based VAD if needed.
 - Improved error handling for diarization failures, with informative feedback to the user.
 - The application continues to provide a transcript even if diarization fails for some parts of the audio.
+
+## Recent Changes
+- Refactored the codebase for better modularity:
+  - Separated core functionality into `src/core/` directory.
+  - Moved utility functions to `src/utils/` directory.
+  - Reorganized UI-related code in `src/ui/` directory.
+- Improved chunking system for handling longer audio files.
+- Enhanced integration of diarization with the chunking system.
+
+## How to Install Dependencies
+
+1. Ensure you have Python 3.7+ installed.
+2. Clone this repository:
+git clone https://github.com/edszen/audio-transcription-app.git
+cd audio-transcription-app
+3. Create a virtual environment:
+python -m venv venv
+4. Activate the virtual environment:
+- On Windows: `venv\Scripts\activate`
+- On macOS and Linux: `source venv/bin/activate`
+5. Install the required dependencies:
+pip install -r requirements.txt
+## How to Run
+1. Ensure your virtual environment is activated.
+2. Run the application:
+python src/main.py
+## Hugging Face API Key Setup
+
+To use Pyannote VAD, you need to set up a Hugging Face API key:
+
+1. Visit [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) to create an API token.
+2. Accept the user conditions for 'pyannote/voice-activity-detection' at [https://huggingface.co/pyannote/voice-activity-detection](https://huggingface.co/pyannote/voice-activity-detection).
+3. In the application, go to Settings and enter your API key in the designated field.
+
+
 
 ## To-Do
 
