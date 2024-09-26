@@ -67,7 +67,9 @@ class TranscriptionApp(QWidget):
         self.dot_count = 0
         self.setup_logging()
         self.transcriber = None
-        self.raw_text = ""        
+        self.raw_text = "" 
+        self.total_chunks = 0
+        self.processed_chunks = 0       
 
     def closeEvent(self, event):
         if self.transcriber:
@@ -139,6 +141,8 @@ class TranscriptionApp(QWidget):
             self.cancel_button.setEnabled(True)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
+            self.total_chunks = 0
+            self.processed_chunks = 0
             
             use_diarization = self.settings.value("use_diarization", False, type=bool)
             api_key_encrypted = self.settings.value("huggingface_api_key", "")
@@ -150,13 +154,20 @@ class TranscriptionApp(QWidget):
             self.transcriber.progress.connect(self.update_progress)
             self.transcriber.error.connect(self.show_error)
             self.transcriber.status_updated.connect(self.update_status)
+            self.transcriber.chunk_progress.connect(self.update_chunk_progress)
             
             self.logger.info(f"Starting transcription with diarization: {use_diarization}, VAD method: {vad_method}")
             self.thread = threading.Thread(target=self.transcriber.transcribe, 
-                                        args=(file_path, use_diarization, api_key, vad_method))
+                                        args=(file_path, use_diarization, api_key_encrypted, vad_method))
             self.thread.start()
         else:
             QMessageBox.warning(self, 'Error', 'No file selected')
+
+    @pyqtSlot(int, int, int)
+    def update_chunk_progress(self, current_chunk, total_chunks, chunk_progress):
+        overall_progress = int(((current_chunk - 1) / total_chunks * 100) + (chunk_progress / total_chunks))
+        self.progress_bar.setValue(overall_progress)
+        self.text_area.setText(f"Processing chunk {current_chunk} of {total_chunks} ({chunk_progress}% complete)")
 
     def cancel_transcription(self):
         self.logger.info("Cancellation requested by user")
@@ -200,6 +211,9 @@ class TranscriptionApp(QWidget):
         for old_name, new_name in self.speaker_names.items():
             formatted_text = re.sub(f"{old_name}:", f"{new_name}:", formatted_text)
         
+        # Handle diarization failure message
+        formatted_text = formatted_text.replace("[Diarization failed]", "<span style='color: red;'>[Diarization failed for this segment]</span>")
+        
         formatted_text = self.convert_to_html(formatted_text)
         self.text_area.setHtml(formatted_text)
 
@@ -212,6 +226,8 @@ class TranscriptionApp(QWidget):
             self.logger.warning("Received empty transcription")
             self.text_area.setText("No transcription available. The audio might be silent or not contain recognizable speech.")
         else:
+            if "[Diarization failed]" in text:
+                QMessageBox.warning(self, "Diarization Warning", "Diarization failed for some parts of the audio. The transcript will be displayed without speaker identification for those parts.")
             self.format_and_display_transcript()
         self.upload_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
@@ -230,11 +246,26 @@ class TranscriptionApp(QWidget):
     
     @pyqtSlot(str)
     def update_status(self, status):
+        if status.startswith("Processed chunk"):
+            # Extract chunk numbers from the status message
+            _, current, _, total = status.split()
+            self.total_chunks = int(total)
+            self.processed_chunks = int(current)
+            progress = int((self.processed_chunks / self.total_chunks) * 100)
+            self.progress_bar.setValue(progress)
         self.text_area.setText(status)
 
     @pyqtSlot(int)
     def update_progress(self, value):
-        self.progress_bar.setValue(value)
+        if self.total_chunks > 0:
+            # We're in chunked processing mode
+            chunk_progress = value / self.total_chunks
+            current_progress = self.progress_bar.value()
+            self.progress_bar.setValue(current_progress + chunk_progress)
+        else:
+            # We're in normal (non-chunked) processing mode
+            self.progress_bar.setValue(value)
+
         if value == 20:
             self.text_area.setText("Applying Voice Activity Detection...")
         elif value == 40:
@@ -248,6 +279,7 @@ class TranscriptionApp(QWidget):
             self.text_area.setText("Aligning transcription with speaker segments...")
         elif value == 100:
             self.text_area.setText("Processing complete. Preparing final transcript...")
+
 
     @pyqtSlot(str)
     def show_error(self, error_message):

@@ -8,6 +8,7 @@ import tempfile
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from PyQt5.QtCore import QObject, pyqtSignal
+import whisperx
 import torch
 from pyannote.audio import Pipeline
 from encryption_utils import EncryptionUtils
@@ -21,6 +22,7 @@ class Transcriber(QObject):
     progress = pyqtSignal(int)
     error = pyqtSignal(str)
     status_updated = pyqtSignal(str)
+    chunk_progress = pyqtSignal(int, int, int) # current chunk, total chunks
 
     def __init__(self):
         super().__init__()
@@ -71,6 +73,33 @@ class Transcriber(QObject):
             self.logger.info(f"VAD applied, found {len(speech_segments)} speech segments")
             self.progress.emit(20)
             
+            # Chunk the audio if it's longer than 5 minutes
+            chunk_length_ms = 5 * 60 * 1000  # 5 minutes
+            if len(audio) > chunk_length_ms:
+                chunks = self.chunk_audio(audio, chunk_length_ms)
+            else:
+                chunks = [audio]
+                
+            transcripts = []
+            for i, chunk in enumerate(chunks):
+                if self.cancel_flag:
+                    break
+                self.status_updated.emit(f"Processing chunk {i+1} of {len(chunks)}")
+                chunk_transcript = self.process_chunk(chunk, i, len(chunks), use_diarization, encrypted_api_key)
+                transcripts.append(chunk_transcript)
+            
+            if not self.cancel_flag:
+                full_transcript = "\n".join(transcripts)
+                self.progress.emit(100)
+                self.status_updated.emit("Transcription completed!")
+                self.finished.emit(full_transcript)
+
+        except Exception as e:
+            if not self.cancel_flag:
+                error_message = f"Error during transcription: {str(e)}"
+                self.logger.error(error_message, exc_info=True)
+                self.error.emit(error_message)
+            
             # Transcribe speech segments
             transcripts = self.transcribe_segments(speech_segments)
             self.logger.info(f"Transcription completed, {len(transcripts)} segments processed")
@@ -80,15 +109,18 @@ class Transcriber(QObject):
             full_transcript = self.combine_transcripts(transcripts)
             self.logger.info(f"Combined transcript length: {len(full_transcript)}")
             
-            # TODO: Implement diarization (will be done in next steps)
             if use_diarization:
-                self.logger.info("Diarization requested, but not yet implemented")
-                # This is where we'll add diarization in the next step
+                self.status_updated.emit("Starting transcription with diarization...")
+                api_key = self.encryption_utils.decrypt(encrypted_api_key) if encrypted_api_key else ""
+                self.api_key = api_key
+                transcript = self.transcribe_with_diarization(file_path)
+            else:
+                transcript = full_transcript  # Use the full transcript when not using diarization
 
             if not self.cancel_flag:
                 self.progress.emit(100)
                 self.status_updated.emit("Transcription completed!")
-                self.finished.emit(full_transcript)
+                self.finished.emit(transcript)
             
         except Exception as e:
             if not self.cancel_flag:
@@ -178,6 +210,149 @@ class Transcriber(QObject):
     
     def combine_transcripts(self, transcripts):
         return " ".join(transcripts)
+    
+    def transcribe_with_diarization(self, file_path):
+        try:
+            self.status_updated.emit("Loading audio file...")
+            
+            # Determine the appropriate device
+            if torch.backends.mps.is_available():
+                device = torch.device('mps')
+                compute_type = "float16"
+            elif torch.cuda.is_available():
+                device = torch.device('cuda')
+                compute_type = "float16"
+            else:
+                device = torch.device('cpu')
+                compute_type = "int8"
+
+            self.logger.info(f"Using device: {device} with compute type: {compute_type}")
+
+            # Load the audio file
+            audio = AudioSegment.from_file(file_path)
+            
+            # Ensure the audio is in a format compatible with the diarization model
+            if audio.channels > 1:
+                audio = audio.set_channels(1)
+            if audio.frame_rate != 16000:
+                audio = audio.set_frame_rate(16000)
+            
+            # Split the audio into 30-second chunks
+            chunk_length_ms = 30 * 1000  # 30 seconds
+            chunks = [audio[i:i + chunk_length_ms] for i in range(0, len(audio), chunk_length_ms)]
+
+            results = []
+            
+            with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
+                future_to_chunk = {executor.submit(self.process_chunk, chunk, i, len(chunks), True, self.api_key): i for i, chunk in enumerate(chunks)}
+                for future in as_completed(future_to_chunk):
+                    chunk_index = future_to_chunk[future]
+                    try:
+                        result = future.result()
+                        results.append(result)
+                        self.chunk_progress.emit(chunk_index + 1, len(chunks), 100)
+                    except Exception as e:
+                        self.logger.error(f"Chunk {chunk_index} generated an exception: {e}")
+
+            # Combine results
+            combined_result = " ".join(results)
+            
+            return combined_result
+        except Exception as e:
+            self.logger.error(f"Error in transcribe_with_diarization: {str(e)}", exc_info=True)
+            raise
+    
+    def chunk_audio(self, audio, chunk_length_ms):
+        return [audio[i:i + chunk_length_ms] for i in range(0, len(audio), chunk_length_ms)]
+    
+    def process_chunk(self, chunk, chunk_index, total_chunks, use_diarization, encrypted_api_key):
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+            chunk_path = temp_file.name
+            try:
+                chunk.export(chunk_path, format="wav")
+                
+                # Verify the exported audio file
+                if os.path.getsize(chunk_path) == 0:
+                    raise ValueError("Exported audio file is empty")
+                
+                # Transcribe with Whisper
+                segments, _ = self.whisper_model.transcribe(chunk_path)
+                transcript = " ".join([segment.text for segment in segments])
+
+                if use_diarization:
+                    try:
+                        api_key = self.encryption_utils.decrypt(encrypted_api_key) if encrypted_api_key else ""
+                        transcript = self.apply_diarization(chunk_path, transcript, api_key)
+                    except ValueError as ve:
+                        self.logger.error(f"Diarization failed for chunk {chunk_index}: {str(ve)}")
+                        # Continue with undiarized transcript
+                        transcript = f"[Diarization failed: {str(ve)}] {transcript}"
+                    except Exception as e:
+                        self.logger.error(f"Unexpected error in diarization for chunk {chunk_index}: {str(e)}")
+                        transcript = f"[Diarization error] {transcript}"
+
+                return transcript
+            except Exception as e:
+                self.logger.error(f"Error processing chunk {chunk_index}: {str(e)}", exc_info=True)
+                return f"[Processing failed for chunk {chunk_index}]"
+            finally:
+                os.unlink(chunk_path)
+                self.chunk_progress.emit(chunk_index + 1, total_chunks, 100)
+    
+    def apply_diarization(self, audio_path, transcript, api_key):
+        try:
+            if torch.backends.mps.is_available():
+                device = torch.device("mps")
+            elif torch.cuda.is_available():
+                device = torch.device("cuda")
+            else:
+                device = torch.device("cpu")
+            self.logger.info(f"Initializing DiarizationPipeline with device: {device}")
+            diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
+            
+            self.logger.info(f"Running diarization on audio file: {audio_path}")
+            diarize_segments = diarize_model(audio_path)
+            
+            self.logger.info("Diarization completed. Segments:")
+            self.logger.info(diarize_segments)
+            
+            self.logger.info("Preparing transcript segments")
+            transcript_segments = [{"start": 0, "end": len(transcript) / 10, "text": transcript}]
+            
+            self.logger.info("Assigning word speakers")
+            result = whisperx.assign_word_speakers(diarize_segments, {"segments": transcript_segments})
+            
+            return self.format_diarized_result(result)
+        except KeyError as ke:
+            self.logger.error(f"KeyError in diarization: {str(ke)}", exc_info=True)
+            raise ValueError(f"Diarization failed due to missing key: {str(ke)}")
+        except Exception as e:
+            self.logger.error(f"Diarization error: {str(e)}", exc_info=True)
+            raise ValueError(f"Diarization failed: {str(e)}")
+        
+    def combine_chunk_results(self, results):
+        combined_segments = []
+        time_offset = 0
+        
+        for result in results:
+            for segment in result["segments"]:
+                segment["start"] += time_offset
+                segment["end"] += time_offset
+                combined_segments.append(segment)
+            
+            time_offset += result["segments"][-1]["end"] if result["segments"] else 0
+
+        return {"segments": combined_segments}
+    
+    def format_diarized_result(self, result):
+        formatted_transcript = []
+        for segment in result["segments"]:
+            start = f"{segment['start']:.2f}"
+            end = f"{segment['end']:.2f}"
+            speaker = segment.get('speaker', 'Unknown')
+            text = segment['text']
+            formatted_transcript.append(f"{start} - {end} | Speaker {speaker}: {text}")
+        return "\n".join(formatted_transcript)
 
     def cancel_transcription(self):
         self.cancel_flag = True

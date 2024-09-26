@@ -16,7 +16,8 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
 - Voice Activity Detection (VAD) is implemented with improved error handling.
 - If pyannote VAD fails, the system falls back to energy-based VAD.
 - Users can now select their preferred VAD method in the settings.
-
+- Improved error handling for diarization failures, with informative feedback to the user.
+- The application continues to provide a transcript even if diarization fails for some parts of the audio.
 
 ## To-Do
 
@@ -24,8 +25,8 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
    - Display timestamps alongside the transcribed text indicating when each section was spoken.
    
 2. **Improve Speaker Recognition**:
-   - Improve the automatic detection and label different speakers in the transcript (e.g., "Speaker 1", "Speaker 2").
    - Enhance the current speaker differentiation system for more accurate results.
+   - Implement a fallback mechanism to handle diarization failures more gracefully.
 
 3. **Summarization**:
    - Provide a concise summary of the entire transcription or specific sections for quick reference.
