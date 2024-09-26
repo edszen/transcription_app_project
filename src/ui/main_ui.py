@@ -4,11 +4,11 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QT
                              QFileDialog, QMessageBox, QProgressBar, QHBoxLayout, QDialog,
                              QLabel, QLineEdit, QDialogButtonBox, QCheckBox, QComboBox)
 from PyQt5.QtCore import pyqtSlot, QTimer, QSettings, QObject
-from transcribe import Transcriber
-from settings import SettingsDialog
-from help_dialog import HelpDialog
+from core.transcribe import Transcriber
+from ui.settings import SettingsDialog
+from ui.help_dialog import HelpDialog
 import re
-from encryption_utils import EncryptionUtils
+from utils.encryption import EncryptionUtils
 import logging
 
 import warnings

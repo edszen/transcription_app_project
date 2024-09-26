@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                              QLineEdit, QCheckBox, QPushButton)
 from PyQt5.QtCore import QSettings
-from encryption_utils import EncryptionUtils
+from utils.encryption import EncryptionUtils
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):

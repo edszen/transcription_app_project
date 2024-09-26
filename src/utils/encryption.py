@@ -4,7 +4,7 @@ import os
 class EncryptionUtils:
     def __init__(self, key=None):
         if key is None:
-            self.key_file = 'encryption.key'
+            self.key_file = 'src/utils/encryption.key'
             self.key = self.load_or_generate_key()
         else:
             self.key = key

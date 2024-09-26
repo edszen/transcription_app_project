@@ -2,7 +2,7 @@ import torch
 from pyannote.audio import Pipeline
 import whisper
 from PyQt5.QtCore import QSettings
-from encryption_utils import EncryptionUtils
+from utils.encryption import EncryptionUtils
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

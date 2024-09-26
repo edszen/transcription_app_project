@@ -4,7 +4,7 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from transcribe import Transcriber
+from core.transcribe import Transcriber
 
 class TestTranscriber(unittest.TestCase):
     pass
