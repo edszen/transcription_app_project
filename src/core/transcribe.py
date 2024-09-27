@@ -2,9 +2,9 @@ import logging
 from faster_whisper import WhisperModel
 from PyQt5.QtCore import QObject, pyqtSignal
 import torch
-from src.utils.encryption import EncryptionUtils
-from src.core.diarization import apply_diarization
-from src.utils.audio_processing import load_audio, chunk_audio
+from utils.encryption import EncryptionUtils
+from core.diarization import apply_diarization
+from utils.audio_processing import load_audio, chunk_audio
 import tempfile
 import os
 
@@ -23,16 +23,16 @@ class Transcriber(QObject):
         super().__init__()
         self.cancel_flag = False
         self.logger = logging.getLogger(__name__)
-        self.model = self._initialize_model()
         self.encryption = EncryptionUtils()
+        self.whisper_model = self._initialize_whisper_model()
 
-    def _initialize_model(self):
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-        compute_type = "float16" if device in ["cuda", "mps"] else "int8"
+    def _initialize_whisper_model(self):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        compute_type = "float16" if device == "cuda" else "int8"
         self.logger.info(f"Initializing Whisper model with device: {device} and compute type: {compute_type}")
         return WhisperModel("small", device=device, compute_type=compute_type)
         
-    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None):
+    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None, vad_method="pyannote"):
         try:
             self.cancel_flag = False
             self.logger.info(f"Starting transcription for file: {file_path}")
@@ -55,19 +55,22 @@ class Transcriber(QObject):
                 chunk_transcript = self.process_chunk(chunk, i, len(chunks), use_diarization, encrypted_api_key)
                 transcripts.append(chunk_transcript)
             
+            if use_diarization:
+                api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
+                transcript = apply_diarization(file_path, "\n".join(transcripts), api_key)
+            else:
+                transcript = "\n".join(transcripts)
+            
             if not self.cancel_flag:
-                full_transcript = "\n".join(transcripts)
                 self.progress.emit(100)
                 self.status_updated.emit("Transcription completed!")
-                self.finished.emit(full_transcript)
-                return full_transcript
+                self.finished.emit(transcript)
+                return transcript
 
         except Exception as e:
-            error_message = f"Error during transcription: {str(e)}"
-            self.logger.error(error_message, exc_info=True)
-            self.error.emit(error_message)
-            raise
-    
+            self.logger.error(f"Error during transcription: {str(e)}", exc_info=True)
+            self.error.emit(f"Error during transcription: {str(e)}")
+        
     def process_chunk(self, chunk, chunk_index, total_chunks, use_diarization, encrypted_api_key):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
             chunk_path = temp_file.name
@@ -79,21 +82,9 @@ class Transcriber(QObject):
                     raise ValueError("Exported audio file is empty")
                 
                 # Transcribe with Whisper
-                segments, _ = self.model.transcribe(chunk_path)
+                segments, _ = self.whisper_model.transcribe(chunk_path)
                 transcript = [{"start": segment.start, "end": segment.end, "text": segment.text} for segment in segments]
                 
-                if use_diarization:
-                    try:
-                        api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                        transcript = apply_diarization(chunk_path, transcript, api_key)
-                    except ValueError as ve:
-                        self.logger.error(f"Diarization failed for chunk {chunk_index}: {str(ve)}")
-                        # Continue with undiarized transcript
-                        transcript = [{"start": 0, "end": 0, "text": f"[Diarization failed: {str(ve)}] " + " ".join(seg['text'] for seg in transcript)}]
-                    except Exception as e:
-                        self.logger.error(f"Unexpected error in diarization for chunk {chunk_index}: {str(e)}")
-                        transcript = [{"start": 0, "end": 0, "text": f"[Diarization error] " + " ".join(seg['text'] for seg in transcript)}]
-
                 formatted_transcript = self.format_transcript(transcript)
                 self.chunk_progress.emit(chunk_index + 1, total_chunks, 100)
                 return formatted_transcript

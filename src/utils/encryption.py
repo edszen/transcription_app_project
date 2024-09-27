@@ -4,7 +4,7 @@ import os
 class EncryptionUtils:
     def __init__(self, key=None):
         if key is None:
-            self.key_file = 'src/utils/encryption.key'
+            self.key_file = os.path.join(os.path.dirname(__file__), 'encryption.key')
             self.key = self.load_or_generate_key()
         else:
             self.key = key
@@ -12,6 +12,9 @@ class EncryptionUtils:
 
     def load_or_generate_key(self):
         """Load the encryption key from a file, or generate a new one if it doesn't exist."""
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(self.key_file), exist_ok=True)
+        
         if os.path.exists(self.key_file):
             with open(self.key_file, 'rb') as key_file:
                 return key_file.read()

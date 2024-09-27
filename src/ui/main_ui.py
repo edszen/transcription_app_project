@@ -10,9 +10,15 @@ from ui.help_dialog import HelpDialog
 import re
 from utils.encryption import EncryptionUtils
 import logging
+from src.core.transcribe import Transcriber
+import os
+from core.transcribe import Transcriber
 
 import warnings
 import re
+
+# Project root directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 def filter_warnings(message, category, filename, lineno, file=None, line=None):
     if category == UserWarning:
@@ -141,12 +147,9 @@ class TranscriptionApp(QWidget):
             self.cancel_button.setEnabled(True)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(0)
-            self.total_chunks = 0
-            self.processed_chunks = 0
             
             use_diarization = self.settings.value("use_diarization", False, type=bool)
             api_key_encrypted = self.settings.value("huggingface_api_key", "")
-            api_key = self.encryption_utils.decrypt(api_key_encrypted) if api_key_encrypted else ""
             vad_method = self.settings.value("vad_method", "pyannote")
             
             self.transcriber = Transcriber()

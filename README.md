@@ -154,7 +154,7 @@ To use Pyannote VAD, you need to set up a Hugging Face API key:
 
 Run the application:
 ```bash
-python main.py
+python run.py
 ```
 
 ## Troubleshooting
