@@ -1,7 +1,8 @@
 import logging
-import whisperx
+#from whisperx import DiarizationPipeline, load_audio
 import torch
 import numpy as np
+import whisperx
 
 
 logger = logging.getLogger(__name__)
@@ -54,16 +55,21 @@ def _post_process_diarization(result):
     current_speaker = None
     current_text = []
     start_time = None
+    speaker_change_threshold = 0.8  # Fine-tune this value to switch speakers more appropriately
     
-    for segment in result.get("segments", []):
-        start = f"{segment.get('start', 0):.2f}"
-        end = f"{segment.get('end', 0):.2f}"
+    for segment in result["segments"]:
+        start = f"{segment['start']:.2f}"
+        end = f"{segment['end']:.2f}"
         speaker = segment.get('speaker', 'UNKNOWN')
-        if isinstance(speaker, (int, np.integer)):
-            speaker = f"SPEAKER_{speaker}"
-        text = segment.get('text', '')
-        
-        if speaker != current_speaker or (float(start) - float(prev_end) > 1.0 if 'prev_end' in locals() else False):
+
+        # Fallback to previous speaker if UNKNOWN
+        if speaker == 'UNKNOWN':
+            speaker = current_speaker if current_speaker else 'SPEAKER_XX'
+
+        text = segment['text']
+
+        # Condition to switch speakers with a more generous threshold
+        if speaker != current_speaker or (float(start) - float(prev_end) > speaker_change_threshold if 'prev_end' in locals() else False):
             if current_speaker:
                 formatted_transcript.append(f"{start_time} - {prev_end} | {current_speaker}: {' '.join(current_text)}")
             current_speaker = speaker
@@ -71,10 +77,11 @@ def _post_process_diarization(result):
             start_time = start
         else:
             current_text.append(text)
-        
+
         prev_end = end
-    
+
+    # Append the final speaker block
     if current_speaker:
         formatted_transcript.append(f"{start_time} - {prev_end} | {current_speaker}: {' '.join(current_text)}")
-    
+
     return "\n".join(formatted_transcript)

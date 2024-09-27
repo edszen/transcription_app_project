@@ -108,45 +108,59 @@ class Transcriber(QObject):
             self.error.emit(f"Error during transcription: {str(e)}")
 
     def process_chunk(self, chunk, chunk_index, total_chunks, use_diarization, encrypted_api_key):
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
-            chunk_path = temp_file.name
+        max_retries = 3  # Retry up to 3 times if processing a chunk fails
+        retries = 0
+        success = False
+        
+        while retries < max_retries and not success:
             try:
-                chunk.export(chunk_path, format="wav")
-                
-                if os.path.getsize(chunk_path) == 0:
-                    raise ValueError("Exported audio file is empty")
-                
-                segments, _ = self.whisper_model.transcribe(chunk_path)
-                transcript = " ".join([seg.text for seg in segments])
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
+                    chunk_path = temp_file.name
+                    chunk.export(chunk_path, format="wav")
+                    
+                    if os.path.getsize(chunk_path) == 0:
+                        raise ValueError("Exported audio file is empty")
 
-                self.chunk_progress.emit(chunk_index + 1, total_chunks, 100)
-                return transcript
+                    # Transcription
+                    segments, _ = self.whisper_model.transcribe(chunk_path)
+                    transcript = " ".join([seg.text for seg in segments])
+                    
+                    success = True
+                    self.chunk_progress.emit(chunk_index + 1, total_chunks, 100)
+                    return transcript
             except Exception as e:
-                self.logger.error(f"Error processing chunk {chunk_index}: {str(e)}", exc_info=True)
-                return f"[Processing failed for chunk {chunk_index}]"
+                retries += 1
+                logger.error(f"Error processing chunk {chunk_index}, retry {retries}/{max_retries}: {str(e)}", exc_info=True)
+                if retries == max_retries:
+                    return f"[Processing failed for chunk {chunk_index} after {max_retries} retries]"
             finally:
-                os.unlink(chunk_path)
+                if os.path.exists(chunk_path):
+                    os.unlink(chunk_path)
     
     def apply_diarization(self, audio_path, transcript, encrypted_api_key):
         try:
-            api_key = self.encryption_utils.decrypt(encrypted_api_key) if encrypted_api_key else ""
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
+            device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+
             logger.info(f"Initializing DiarizationPipeline with device: {device}")
             diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
-            
+
             logger.info(f"Running diarization on audio file: {audio_path}")
             diarize_segments = diarize_model(audio_path)
-            
+
             logger.info("Diarization completed. Segments:")
             logger.info(diarize_segments)
-            
+
             logger.info("Preparing transcript segments")
             transcript_segments = self._prepare_transcript_segments(transcript)
-            
+
             logger.info("Assigning word speakers")
             result = whisperx.assign_word_speakers(diarize_segments, transcript_segments)
-            
-            return self._post_process_diarization(result)
+
+            # Process results and fallback if needed
+            final_transcript = self._post_process_diarization(result)
+            return final_transcript
+
         except Exception as e:
             logger.error(f"Diarization error: {str(e)}", exc_info=True)
             return f"[Diarization failed: {str(e)}]\n\n{transcript}"
