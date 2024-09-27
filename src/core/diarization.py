@@ -20,17 +20,14 @@ def apply_diarization(audio_path, transcript, api_key):
         diarize_segments = diarize_model(audio)
         logger.info("Diarization completed")
         
-        # Prepare transcript segments
-        transcript_segments = _prepare_transcript_segments(transcript)
-        
         # Assign speaker labels
-        result = whisperx.assign_word_speakers(diarize_segments, transcript_segments)
+        result = whisperx.assign_word_speakers(diarize_segments, transcript)
         logger.info("Speaker labels assigned to words")
         
         return _post_process_diarization(result)
     except Exception as e:
         logger.error(f"Diarization error: {str(e)}", exc_info=True)
-        return f"[Diarization failed: {str(e)}]\n\n{transcript}"
+        return f"[Diarization failed: {str(e)}]\n\n" + "\n".join([seg["text"] for seg in transcript["segments"]])
 
 def _get_device():
     if torch.backends.mps.is_available():
@@ -39,16 +36,6 @@ def _get_device():
         return torch.device("cuda")
     else:
         return torch.device("cpu")
-
-def _prepare_transcript_segments(transcript):
-    words = transcript.split()
-    segments = []
-    start_time = 0
-    for word in words:
-        end_time = start_time + 0.4  # Assume each word takes about 0.4 seconds
-        segments.append({"start": start_time, "end": end_time, "text": word})
-        start_time = end_time
-    return {"segments": segments}
 
 def _post_process_diarization(result):
     formatted_transcript = []

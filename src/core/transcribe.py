@@ -38,65 +38,54 @@ class Transcriber(QObject):
             logger.info(f"Starting transcription for file: {file_path}")
             self.status_updated.emit("Loading audio file...")
             
-            audio = load_audio(file_path)
-            logger.info(f"Audio file loaded, duration: {len(audio)/1000:.2f} seconds")
+            # Load audio file
+            audio = whisperx.load_audio(file_path)
+            logger.info(f"Audio file loaded, duration: {len(audio)/16000:.2f} seconds")
             
             # Apply VAD
             self.status_updated.emit("Applying Voice Activity Detection...")
             if vad_method == 'pyannote':
                 try:
                     api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                    speech_segments = apply_pyannote_vad(file_path, api_key)
+                    vad_segments = apply_pyannote_vad(file_path, api_key)
                 except Exception as e:
                     logger.error(f"Pyannote VAD failed: {str(e)}. Falling back to energy-based VAD.")
                     self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
-                    speech_segments = apply_energy_vad(audio)
+                    vad_segments = apply_energy_vad(audio)
             elif vad_method == 'energy':
-                speech_segments = apply_energy_vad(audio)
+                vad_segments = apply_energy_vad(audio)
             else:
-                speech_segments = [audio]  # No VAD, use full audio
+                vad_segments = [audio]  # No VAD, use full audio
             
-            logger.info(f"VAD applied, found {len(speech_segments)} speech segments")
+            logger.info(f"VAD applied, found {len(vad_segments)} speech segments")
             self.progress.emit(20)
 
-            # Chunk the audio if it's longer than 5 minutes
-            chunk_length_ms = 5 * 60 * 1000  # 5 minutes
-            chunks = self.chunk_audio(audio, chunk_length_ms)
+            # Transcribe audio using Faster Whisper
+            self.status_updated.emit("Transcribing audio...")
+            segments, info = self.whisper_model.transcribe(audio, beam_size=5)
+            
+            # Convert Faster Whisper segments to WhisperX format
+            whisperx_segments = [
+                {
+                    "start": segment.start,
+                    "end": segment.end,
+                    "text": segment.text
+                } for segment in segments
+            ]
+            result = {"segments": whisperx_segments, "language": info.language}
+            self.progress.emit(60)
 
-            transcripts = []
-            for i, chunk in enumerate(chunks):
-                if self.cancel_flag:
-                    break
-                self.status_updated.emit(f"Processing chunk {i+1} of {len(chunks)}")
-                chunk_transcript = self.process_chunk(chunk, i, len(chunks), use_diarization, encrypted_api_key)
-                transcripts.append(chunk_transcript)
-
-            if not self.cancel_flag:
-                full_transcript = "\n".join(transcripts)
-                if use_diarization:
-                    full_transcript = self.apply_diarization(file_path, full_transcript, encrypted_api_key)
-                self.progress.emit(100)
-                self.status_updated.emit("Transcription completed!")
-                self.finished.emit(full_transcript)
-
-        except Exception as e:
-
-            full_transcript = " ".join(transcripts)
-
+            # Apply diarization if enabled
             if use_diarization:
                 self.status_updated.emit("Applying diarization...")
                 try:
                     api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                    diarized_transcript = apply_diarization(file_path, full_transcript, api_key)
-                    if diarized_transcript.startswith("[Diarization failed:"):
-                        logger.warning(diarized_transcript)
-                        # Optionally, you can choose to use the non-diarized transcript here
-                        # full_transcript = diarized_transcript.split("\n\n", 1)[1]
-                    else:
-                        full_transcript = diarized_transcript
+                    full_transcript = apply_diarization(file_path, result, api_key)
                 except Exception as e:
                     logger.error(f"Diarization failed: {str(e)}")
-                    full_transcript = f"[Diarization failed: {str(e)}]\n\n" + full_transcript
+                    full_transcript = f"[Diarization failed: {str(e)}]\n\n" + "\n".join([seg["text"] for seg in result["segments"]])
+            else:
+                full_transcript = "\n".join([seg["text"] for seg in result["segments"]])
 
             if not self.cancel_flag:
                 self.progress.emit(100)
