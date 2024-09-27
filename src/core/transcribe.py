@@ -5,6 +5,7 @@ import torch
 from utils.encryption import EncryptionUtils
 from core.diarization import apply_diarization
 from utils.audio_processing import load_audio, chunk_audio
+from core.vad import apply_energy_vad, apply_pyannote_vad
 import tempfile
 import os
 
@@ -41,53 +42,78 @@ class Transcriber(QObject):
             audio = load_audio(file_path)
             self.logger.info(f"Audio file loaded, duration: {len(audio)/1000:.2f} seconds")
             
-            chunk_length_ms = 5 * 60 * 1000  # 5 minutes
-            if len(audio) > chunk_length_ms:
-                chunks = chunk_audio(audio, chunk_length_ms)
+            # Apply VAD
+            self.status_updated.emit("Applying Voice Activity Detection...")
+            if vad_method == 'pyannote':
+                try:
+                    api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
+                    speech_segments = apply_pyannote_vad(file_path, api_key)
+                except Exception as e:
+                    self.logger.error(f"Pyannote VAD failed: {str(e)}. Falling back to energy-based VAD.")
+                    self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
+                    speech_segments = apply_energy_vad(audio)
+            elif vad_method == 'energy':
+                speech_segments = apply_energy_vad(audio)
             else:
-                chunks = [audio]
+                speech_segments = [audio]  # No VAD, use full audio
             
+            self.logger.info(f"VAD applied, found {len(speech_segments)} speech segments")
+            self.progress.emit(20)
+
+            # Chunk the audio if it's longer than 5 minutes
+            chunk_length_ms = 5 * 60 * 1000  # 5 minutes
             transcripts = []
-            for i, chunk in enumerate(chunks):
+            
+            for i, segment in enumerate(speech_segments):
                 if self.cancel_flag:
                     break
-                self.status_updated.emit(f"Processing chunk {i+1} of {len(chunks)}")
-                chunk_transcript = self.process_chunk(chunk, i, len(chunks), use_diarization, encrypted_api_key)
-                transcripts.append(chunk_transcript)
-            
+                
+                if len(segment) > chunk_length_ms:
+                    chunks = chunk_audio(segment, chunk_length_ms)
+                else:
+                    chunks = [segment]
+                
+                for j, chunk in enumerate(chunks):
+                    if self.cancel_flag:
+                        break
+                    self.status_updated.emit(f"Processing segment {i+1}/{len(speech_segments)}, chunk {j+1}/{len(chunks)}")
+                    chunk_transcript = self.process_chunk(chunk, i*len(chunks)+j, len(speech_segments)*len(chunks), use_diarization, encrypted_api_key)
+                    transcripts.append(chunk_transcript)
+
+            full_transcript = " ".join(transcripts)
+
             if use_diarization:
-                api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                transcript = apply_diarization(file_path, "\n".join(transcripts), api_key)
-            else:
-                transcript = "\n".join(transcripts)
-            
+                self.status_updated.emit("Applying diarization...")
+                try:
+                    api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
+                    full_transcript = apply_diarization(file_path, full_transcript, api_key)
+                except Exception as e:
+                    self.logger.error(f"Diarization failed: {str(e)}")
+                    full_transcript = f"[Diarization failed: {str(e)}]\n\n" + full_transcript
+
             if not self.cancel_flag:
                 self.progress.emit(100)
                 self.status_updated.emit("Transcription completed!")
-                self.finished.emit(transcript)
-                return transcript
+                self.finished.emit(full_transcript)
 
         except Exception as e:
             self.logger.error(f"Error during transcription: {str(e)}", exc_info=True)
             self.error.emit(f"Error during transcription: {str(e)}")
-        
+
     def process_chunk(self, chunk, chunk_index, total_chunks, use_diarization, encrypted_api_key):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
             chunk_path = temp_file.name
             try:
                 chunk.export(chunk_path, format="wav")
                 
-                # Verify the exported audio file
                 if os.path.getsize(chunk_path) == 0:
                     raise ValueError("Exported audio file is empty")
                 
-                # Transcribe with Whisper
                 segments, _ = self.whisper_model.transcribe(chunk_path)
-                transcript = [{"start": segment.start, "end": segment.end, "text": segment.text} for segment in segments]
-                
-                formatted_transcript = self.format_transcript(transcript)
+                transcript = " ".join([seg.text for seg in segments])
+
                 self.chunk_progress.emit(chunk_index + 1, total_chunks, 100)
-                return formatted_transcript
+                return transcript
             except Exception as e:
                 self.logger.error(f"Error processing chunk {chunk_index}: {str(e)}", exc_info=True)
                 return f"[Processing failed for chunk {chunk_index}]"

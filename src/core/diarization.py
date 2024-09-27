@@ -2,6 +2,9 @@ import logging
 import whisperx
 import torch
 from pydub import AudioSegment
+import numpy as np
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.metrics import silhouette_score
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +21,7 @@ def apply_diarization(audio_path, transcript, api_key):
         logger.info(diarize_segments)
         
         logger.info("Preparing transcript segments")
-        audio = AudioSegment.from_file(audio_path)
-        transcript_segments = _prepare_transcript_segments(transcript, len(audio) / 1000)
+        transcript_segments = _prepare_transcript_segments(transcript)
         
         logger.info("Assigning word speakers")
         result = whisperx.assign_word_speakers(diarize_segments, transcript_segments)
@@ -37,33 +39,56 @@ def _get_device():
     else:
         return torch.device("cpu")
 
-def _prepare_transcript_segments(transcript, audio_duration):
-    return {"segments": [{"start": 0, "end": audio_duration, "text": transcript}]}
+def _prepare_transcript_segments(transcript):
+    words = transcript.split()
+    segments = []
+    start_time = 0
+    for i, word in enumerate(words):
+        end_time = start_time + 0.4  # Assume each word takes about 0.4 seconds
+        segments.append({"start": start_time, "end": end_time, "text": word})
+        start_time = end_time
+    return {"segments": segments}
 
 def _post_process_diarization(result):
     formatted_transcript = []
-    speaker_map = {}
+    embeddings = np.array([s['speaker_embedding'] for s in result['segments'] if 'speaker_embedding' in s])
+    
+    if len(embeddings) > 0:
+        # Determine optimal number of clusters
+        max_clusters = min(len(embeddings), 10)  # Set a reasonable upper limit
+        best_n_clusters = 2  # Default to 2 if we can't find a better option
+        best_score = -1
+        
+        for n_clusters in range(2, max_clusters + 1):
+            clustering = AgglomerativeClustering(n_clusters=n_clusters).fit(embeddings)
+            score = silhouette_score(embeddings, clustering.labels_)
+            if score > best_score:
+                best_score = score
+                best_n_clusters = n_clusters
+        
+        clustering = AgglomerativeClustering(n_clusters=best_n_clusters).fit(embeddings)
+        labels = clustering.labels_
+    else:
+        labels = [0] * len(result['segments'])
+    
     current_speaker = None
     current_text = []
+    start_time = None
     
-    for segment in result["segments"]:
+    for i, segment in enumerate(result['segments']):
         start = f"{segment['start']:.2f}"
         end = f"{segment['end']:.2f}"
-        speaker = segment.get('speaker')
+        speaker = f"SPEAKER_{labels[i] + 1}"
+        text = segment['text']
         
-        if speaker not in speaker_map:
-            speaker_map[speaker] = f"SPEAKER_{len(speaker_map) + 1}"
-        
-        speaker_id = speaker_map[speaker]
-        
-        if speaker_id != current_speaker:
+        if speaker != current_speaker:
             if current_speaker:
                 formatted_transcript.append(f"{start_time} - {prev_end} | {current_speaker}: {' '.join(current_text)}")
-            current_speaker = speaker_id
-            current_text = [segment['text']]
+            current_speaker = speaker
+            current_text = [text]
             start_time = start
         else:
-            current_text.append(segment['text'])
+            current_text.append(text)
         
         prev_end = end
     

@@ -1,5 +1,5 @@
 import logging
-from pyannote.audio import VoiceActivityDetection, Pipeline
+from pyannote.audio import Pipeline
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
 
