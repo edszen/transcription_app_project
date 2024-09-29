@@ -5,6 +5,8 @@ from pyannote.core import Segment
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
 import torch
+import torchaudio
+from speechbrain.inference.speaker import EncoderClassifier
 from utils.encryption import EncryptionUtils
 from scipy.spatial.distance import cdist
 import numpy as np
@@ -19,26 +21,24 @@ def embed_speakers(file_path, api_key):
         
         logger.info("API key decrypted successfully")
         
-        embedding_model = Pipeline.from_pretrained("pyannote/embedding", use_auth_token=api_key)
-        embeddings = embedding_model(file_path)
+        logger.info("Loading SpeechBrain ECAPA-TDNN model for speaker embedding")
+       # Load the pre-trained model
+        classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
         
         logger.info("Embedding model loaded successfully")
         
-        # Use GPU if available
-        device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-        model = model.to(device)
+        # Load and preprocess the audio file
+        waveform, sample_rate = torchaudio.load(file_path)
         
-        logger.info(f"Using device: {device} for embedding")
-        
-        # Create inference object
-        inference = Inference(model, window="sliding", duration=5.0, step=0.5)
-        
-        logger.info("Inference object created successfully")
+        # Resample if necessary (ECAPA-TDNN expects 16kHz)
+        if sample_rate != 16000:
+            resampler = torchaudio.transforms.Resample(sample_rate, 16000)
+            waveform = resampler(waveform)
         
         # Compute embeddings
-        embeddings = inference(file_path)
+        embeddings = classifier.encode_batch(waveform)
         
-        logger.info(f"Speaker embeddings computed successfully. Shape: {embeddings.data.shape}")
+        logger.info(f"Speaker embeddings computed successfully. Shape: {embeddings.shape}")
         
         return embeddings
     except Exception as e:

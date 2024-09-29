@@ -1,9 +1,10 @@
 import logging
-#from whisperx import DiarizationPipeline, load_audio
+from whisperx import DiarizationPipeline, load_audio
 import torch
 import numpy as np
 import whisperx
 from utils.encryption import EncryptionUtils
+#from sklearn.cluster import Agg
 
 
 logger = logging.getLogger(__name__)
