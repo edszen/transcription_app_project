@@ -43,13 +43,12 @@ class Transcriber(QObject):
             logger.info(f"Audio file loaded, duration: {len(audio)/16000:.2f} seconds")
             
             # Compute speaker embeddings for the entire audio file
-            if use_embedding:
+            embeddings = None
+            if use_embedding and use_diarization:
                 self.status_updated.emit("Computing speaker embeddings...")
                 embeddings = embed_speakers(file_path, encrypted_api_key)
                 if embeddings is None:
                     logger.warning("Speaker embedding failed. Proceeding without embeddings.")
-            else:
-                embeddings = None
             
             # Apply VAD
             self.status_updated.emit("Applying Voice Activity Detection...")

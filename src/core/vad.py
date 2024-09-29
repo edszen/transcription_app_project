@@ -22,21 +22,22 @@ def embed_speakers(file_path, api_key):
         logger.info("API key decrypted successfully")
         
         logger.info("Loading SpeechBrain ECAPA-TDNN model for speaker embedding")
-       # Load the pre-trained model
         classifier = EncoderClassifier.from_hparams(source="speechbrain/spkrec-ecapa-voxceleb")
         
         logger.info("Embedding model loaded successfully")
         
-        # Load and preprocess the audio file
         waveform, sample_rate = torchaudio.load(file_path)
         
-        # Resample if necessary (ECAPA-TDNN expects 16kHz)
         if sample_rate != 16000:
             resampler = torchaudio.transforms.Resample(sample_rate, 16000)
             waveform = resampler(waveform)
         
-        # Compute embeddings
         embeddings = classifier.encode_batch(waveform)
+        
+        embeddings = embeddings.permute(0, 2, 1)
+        
+        # Replace NaN values with 0
+        embeddings = torch.nan_to_num(embeddings, nan=0.0)
         
         logger.info(f"Speaker embeddings computed successfully. Shape: {embeddings.shape}")
         
@@ -44,7 +45,6 @@ def embed_speakers(file_path, api_key):
     except Exception as e:
         logger.error(f"Error during embedding: {str(e)}")
         return None
-
 def apply_pyannote_vad(file_path, api_key, use_embedding=False):
     try:
         vad_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection", use_auth_token=api_key)

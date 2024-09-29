@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import whisperx
 from utils.encryption import EncryptionUtils
-#from sklearn.cluster import Agg
+from sklearn.cluster import AgglomerativeClustering
 
 
 logger = logging.getLogger(__name__)
@@ -23,18 +23,18 @@ def apply_diarization(audio_path, transcript, encrypted_api_key, embeddings=None
         
         # Perform speaker diarization
         diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
-        
-        # Use embeddings if available
-        if embeddings is not None:
-            diarize_segments = diarize_model(audio, embeddings=embeddings.data)
-        else:
-            diarize_segments = diarize_model(audio)
+        diarize_segments = diarize_model(audio)
         
         logger.info("Diarization completed")
         
         # Assign speaker labels
         result = whisperx.assign_word_speakers(diarize_segments, transcript)
         logger.info("Speaker labels assigned to words")
+        
+        # If embeddings are provided, use them for speaker clustering
+        if embeddings is not None:
+            result = _cluster_speakers_with_embeddings(result, embeddings)
+            logger.info("Speakers clustered using embeddings")
         
         return _post_process_diarization(result)
     except Exception as e:
@@ -48,6 +48,38 @@ def _get_device():
         return torch.device("cuda")
     else:
         return torch.device("cpu")
+    
+def _cluster_speakers_with_embeddings(diarization_result, embeddings):
+    segment_embeddings = []
+    for segment in diarization_result["segments"]:
+        start_frame = int(segment["start"] * 16000)
+        end_frame = int(segment["end"] * 16000)
+        segment_embedding = embeddings[:, :, start_frame:end_frame].mean(dim=2).numpy()
+        segment_embeddings.append(segment_embedding.flatten())
+
+    segment_embeddings = np.array(segment_embeddings)
+    
+    # Check for NaN values
+    if np.isnan(segment_embeddings).any():
+        logger.warning("NaN values found in embeddings. Replacing with 0.")
+        segment_embeddings = np.nan_to_num(segment_embeddings, nan=0.0)
+    
+    # Check if we have enough valid embeddings for clustering
+    if len(segment_embeddings) < 2:
+        logger.warning("Not enough valid embeddings for clustering. Skipping clustering.")
+        return diarization_result
+
+    try:
+        clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=0.3)
+        labels = clustering.fit_predict(segment_embeddings)
+    except Exception as e:
+        logger.error(f"Clustering failed: {str(e)}. Falling back to original diarization.")
+        return diarization_result
+
+    for i, segment in enumerate(diarization_result["segments"]):
+        segment["speaker"] = f"SPEAKER_{labels[i]}"
+
+    return diarization_result
 
 def _post_process_diarization(result):
     formatted_transcript = []
