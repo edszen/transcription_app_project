@@ -5,7 +5,7 @@ import torch
 from utils.encryption import EncryptionUtils
 from core.diarization import apply_diarization
 from utils.audio_processing import load_audio, chunk_audio
-from core.vad import apply_energy_vad, apply_pyannote_vad
+from core.vad import apply_energy_vad, apply_pyannote_vad, embed_speakers
 import tempfile
 import os
 import whisperx
@@ -32,7 +32,7 @@ class Transcriber(QObject):
         logger.info(f"Initializing Whisper model with device: {device} and compute type: {compute_type}")
         return WhisperModel("small", device=device, compute_type=compute_type)
 
-    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None, vad_method="pyannote"):
+    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None, vad_method="pyannote", use_embedding=True):
         try:
             self.cancel_flag = False
             logger.info(f"Starting transcription for file: {file_path}")
@@ -42,12 +42,20 @@ class Transcriber(QObject):
             audio = whisperx.load_audio(file_path)
             logger.info(f"Audio file loaded, duration: {len(audio)/16000:.2f} seconds")
             
+            # Compute speaker embeddings for the entire audio file
+            if use_embedding:
+                self.status_updated.emit("Computing speaker embeddings...")
+                embeddings = embed_speakers(file_path, encrypted_api_key)
+                if embeddings is None:
+                    logger.warning("Speaker embedding failed. Proceeding without embeddings.")
+            else:
+                embeddings = None
+            
             # Apply VAD
             self.status_updated.emit("Applying Voice Activity Detection...")
             if vad_method == 'pyannote':
                 try:
-                    api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                    vad_segments = apply_pyannote_vad(file_path, api_key)
+                    vad_segments = apply_pyannote_vad(file_path, encrypted_api_key)
                 except Exception as e:
                     logger.error(f"Pyannote VAD failed: {str(e)}. Falling back to energy-based VAD.")
                     self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
@@ -79,8 +87,7 @@ class Transcriber(QObject):
             if use_diarization:
                 self.status_updated.emit("Applying diarization...")
                 try:
-                    api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                    full_transcript = apply_diarization(file_path, result, api_key)
+                    full_transcript = apply_diarization(file_path, result, encrypted_api_key, embeddings)
                 except Exception as e:
                     logger.error(f"Diarization failed: {str(e)}")
                     full_transcript = f"[Diarization failed: {str(e)}]\n\n" + "\n".join([seg["text"] for seg in result["segments"]])

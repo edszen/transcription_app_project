@@ -3,21 +3,32 @@ import logging
 import torch
 import numpy as np
 import whisperx
+from utils.encryption import EncryptionUtils
 
 
 logger = logging.getLogger(__name__)
 
-def apply_diarization(audio_path, transcript, api_key):
+def apply_diarization(audio_path, transcript, encrypted_api_key, embeddings=None):
     try:
         device = _get_device()
         logger.info(f"Initializing WhisperX diarization with device: {device}")
+        
+        # Decrypt the API key
+        encryption_utils = EncryptionUtils()
+        api_key = encryption_utils.decrypt(encrypted_api_key)
         
         # Load audio
         audio = whisperx.load_audio(audio_path)
         
         # Perform speaker diarization
         diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
-        diarize_segments = diarize_model(audio)
+        
+        # Use embeddings if available
+        if embeddings is not None:
+            diarize_segments = diarize_model(audio, embeddings=embeddings.data)
+        else:
+            diarize_segments = diarize_model(audio)
+        
         logger.info("Diarization completed")
         
         # Assign speaker labels
