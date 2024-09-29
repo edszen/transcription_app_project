@@ -46,16 +46,15 @@ class Transcriber(QObject):
             self.status_updated.emit("Applying Voice Activity Detection...")
             if vad_method == 'pyannote':
                 try:
-                    api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                    vad_segments = apply_pyannote_vad(file_path, api_key)
+                    vad_segments, speaker_embeddings = apply_pyannote_vad(file_path, encrypted_api_key)
                 except Exception as e:
                     logger.error(f"Pyannote VAD failed: {str(e)}. Falling back to energy-based VAD.")
                     self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
-                    vad_segments = apply_energy_vad(audio)
+                    vad_segments, speaker_embeddings = apply_energy_vad(audio)
             elif vad_method == 'energy':
-                vad_segments = apply_energy_vad(audio)
+                vad_segments, speaker_embeddings = apply_energy_vad(audio)
             else:
-                vad_segments = [audio]  # No VAD, use full audio
+                vad_segments, speaker_embeddings = [audio], []  # No VAD, use full audio
             
             logger.info(f"VAD applied, found {len(vad_segments)} speech segments")
             self.progress.emit(20)
@@ -79,8 +78,7 @@ class Transcriber(QObject):
             if use_diarization:
                 self.status_updated.emit("Applying diarization...")
                 try:
-                    api_key = self.encryption.decrypt(encrypted_api_key) if encrypted_api_key else ""
-                    full_transcript = apply_diarization(file_path, result, api_key)
+                    full_transcript = apply_diarization(file_path, result, encrypted_api_key, speaker_embeddings)
                 except Exception as e:
                     logger.error(f"Diarization failed: {str(e)}")
                     full_transcript = f"[Diarization failed: {str(e)}]\n\n" + "\n".join([seg["text"] for seg in result["segments"]])

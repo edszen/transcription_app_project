@@ -124,3 +124,4 @@ webrtcvad==2.0.10
 yarl==1.11.1
 whisperx @ git+https://github.com/m-bain/whisperX.git
 ffmpeg==1.4
+pytest==7.3.1
