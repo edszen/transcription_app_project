@@ -78,7 +78,7 @@ class Transcriber(QObject):
             if use_diarization:
                 self.status_updated.emit("Applying diarization...")
                 try:
-                    full_transcript = apply_diarization(file_path, result, encrypted_api_key, speaker_embeddings)
+                    full_transcript = apply_diarization(file_path, result, encrypted_api_key)
                 except Exception as e:
                     logger.error(f"Diarization failed: {str(e)}")
                     full_transcript = f"[Diarization failed: {str(e)}]\n\n" + "\n".join([seg["text"] for seg in result["segments"]])

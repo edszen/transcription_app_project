@@ -1,9 +1,14 @@
 import logging
 from pyannote.audio import Pipeline, Model
+from pyannote.audio import Inference
+from pyannote.core import Segment
 from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
 import torch
 from utils.encryption import EncryptionUtils
+from scipy.spatial.distance import cdist
+import numpy as np
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +26,7 @@ def apply_pyannote_vad(file_path, encrypted_api_key):
         
         # Load speaker embedding model
         embedding_model = Model.from_pretrained("pyannote/embedding", use_auth_token=decrypted_api_key)
+        inference = Inference(embedding_model, window="whole")
 
         speaker_embeddings = []
         speech_segments = []
@@ -44,7 +50,7 @@ def apply_pyannote_vad(file_path, encrypted_api_key):
     except Exception as e:
         logger.error(f"Error during Pyannote VAD: {str(e)}")
         logger.info("Falling back to energy-based VAD")
-        return apply_energy_vad(AudioSegment.from_file(file_path)), []
+        return apply_energy_vad(AudioSegment.from_file(file_path))
     
 def apply_energy_vad(audio, min_silence_len=300, silence_thresh=-40):
     try:

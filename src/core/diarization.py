@@ -16,7 +16,7 @@ def apply_diarization(audio_path, transcript, api_key):
         audio = load_whisperx_audio(audio_path)
         
         # Apply VAD and extract speaker embeddings
-        speaker_embeddings, speech_segments = apply_pyannote_vad(audio, api_key)
+        speaker_embeddings, vad_segments = apply_pyannote_vad(audio, api_key)
         
         # Perform speaker diarization
         diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
