@@ -32,9 +32,20 @@ def embed_speakers(file_path, api_key):
             resampler = torchaudio.transforms.Resample(sample_rate, 16000)
             waveform = resampler(waveform)
         
-        embeddings = classifier.encode_batch(waveform)
+        # Process the audio in chunks of 10 seconds
+        chunk_size = 10 * 16000  # 10 seconds at 16kHz
+        embeddings = []
         
-        embeddings = embeddings.permute(0, 2, 1)
+        for i in range(0, waveform.shape[1], chunk_size):
+            chunk = waveform[:, i:i+chunk_size]
+            if chunk.shape[1] < chunk_size:
+                # Pad the last chunk if it's shorter than 10 seconds
+                chunk = torch.nn.functional.pad(chunk, (0, chunk_size - chunk.shape[1]))
+            
+            chunk_embedding = classifier.encode_batch(chunk)
+            embeddings.append(chunk_embedding)
+        
+        embeddings = torch.cat(embeddings, dim=2)
         
         # Replace NaN values with 0
         embeddings = torch.nan_to_num(embeddings, nan=0.0)
@@ -45,6 +56,7 @@ def embed_speakers(file_path, api_key):
     except Exception as e:
         logger.error(f"Error during embedding: {str(e)}")
         return None
+
 def apply_pyannote_vad(file_path, api_key, use_embedding=False):
     try:
         vad_pipeline = Pipeline.from_pretrained("pyannote/voice-activity-detection", use_auth_token=api_key)

@@ -5,6 +5,8 @@ import numpy as np
 import whisperx
 from utils.encryption import EncryptionUtils
 from sklearn.cluster import AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
+from scipy.spatial.distance import cdist
 
 
 logger = logging.getLogger(__name__)
@@ -70,14 +72,25 @@ def _cluster_speakers_with_embeddings(diarization_result, embeddings):
         return diarization_result
 
     try:
-        clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=0.3)
-        labels = clustering.fit_predict(segment_embeddings)
+        # Normalize the embeddings
+        scaler = StandardScaler()
+        normalized_embeddings = scaler.fit_transform(segment_embeddings)
+
+        # Compute the distance matrix
+        distance_matrix = cdist(normalized_embeddings, normalized_embeddings, metric='cosine')
+
+        # Perform clustering
+        n_clusters = min(len(segment_embeddings), 10)  # Limit to 10 speakers maximum
+        clustering = AgglomerativeClustering(n_clusters=n_clusters, affinity='precomputed', linkage='average')
+        labels = clustering.fit_predict(distance_matrix)
+
+        # Assign speaker labels
+        for i, segment in enumerate(diarization_result["segments"]):
+            segment["speaker"] = f"SPEAKER_{labels[i]}"
+
     except Exception as e:
         logger.error(f"Clustering failed: {str(e)}. Falling back to original diarization.")
         return diarization_result
-
-    for i, segment in enumerate(diarization_result["segments"]):
-        segment["speaker"] = f"SPEAKER_{labels[i]}"
 
     return diarization_result
 
