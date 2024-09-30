@@ -1,5 +1,5 @@
 import logging
-from whisperx import DiarizationPipeline, load_audio
+import whisperx
 import torch
 import numpy as np
 import whisperx
