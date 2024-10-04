@@ -44,3 +44,8 @@ HELP_DIALOG_HEIGHT = 300
 
 # Do not store the API key directly in this file
 # It will be handled securely in the application
+
+def create_directories():
+    """Create necessary directories if they don't exist."""
+    for directory in [AUDIO_FILES_DIR, MODELS_DIR, LOG_DIR]:
+        os.makedirs(directory, exist_ok=True)

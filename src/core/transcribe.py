@@ -1,14 +1,22 @@
 import logging
+import os
 from faster_whisper import WhisperModel
 from PyQt5.QtCore import QObject, pyqtSignal
 import torch
 from utils.encryption import EncryptionUtils
 from core.diarization import apply_diarization
-from utils.audio_processing import load_audio
-from core.vad import apply_energy_vad, apply_pyannote_vad, embed_speakers
-import whisperx
+from utils.audio_processing import load_audio, preprocess_audio
+from core.vad import apply_energy_vad, apply_pyannote_vad
+from core.speaker_embedding import extract_speaker_embeddings
+from core.alignment import align_transcription_with_diarization
+import config
 
-logging.basicConfig(level=logging.INFO)
+# Create necessary directories
+config.create_directories()
+
+logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    filename=os.path.join(config.LOG_DIR, 'transcription.log'),
+                    filemode='a')
 logger = logging.getLogger(__name__)
 
 class Transcriber(QObject):
@@ -28,73 +36,74 @@ class Transcriber(QObject):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         compute_type = "float16" if device == "cuda" else "int8"
         logger.info(f"Initializing Whisper model with device: {device} and compute type: {compute_type}")
-        return WhisperModel("small", device=device, compute_type=compute_type)
+        return WhisperModel(config.WHISPER_MODEL, device=device, compute_type=compute_type)
 
-    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None, vad_method="pyannote", use_embedding=True):
+    def transcribe(self, file_path, use_diarization=False, encrypted_api_key=None):
         try:
             self.cancel_flag = False
             logger.info(f"Starting transcription for file: {file_path}")
-            self.status_updated.emit("Loading audio file...")
             
-            audio = whisperx.load_audio(file_path)
-            logger.info(f"Audio file loaded, duration: {len(audio)/16000:.2f} seconds")
+            # Audio Preprocessing
+            self.status_updated.emit("Preprocessing audio file...")
+            audio = preprocess_audio(file_path)
+            logger.info(f"Audio file preprocessed, duration: {len(audio)/config.SAMPLE_RATE:.2f} seconds")
+            self.progress.emit(10)
             
-            embeddings = None
-            if use_embedding and use_diarization:
-                self.status_updated.emit("Computing speaker embeddings...")
-                embeddings = embed_speakers(file_path, encrypted_api_key)
-                if embeddings is None:
-                    logger.warning("Speaker embedding failed. Proceeding without embeddings.")
+            # Voice Activity Detection
+            self.status_updated.emit("Applying voice activity detection...")
+            vad_segments = self._apply_vad(file_path, audio, encrypted_api_key)
+            logger.info(f"VAD applied,  found {len(vad_segments)} speech segments")
+            self.progress.emit(25)
             
-            self.status_updated.emit("Applying Voice Activity Detection...")
-            vad_segments = self._apply_vad(file_path, audio, vad_method, encrypted_api_key)
-            logger.info(f"VAD applied, found {len(vad_segments)} speech segments")
-            self.progress.emit(20)
-
-            self.status_updated.emit("Transcribing audio...")
-            segments, info = self.whisper_model.transcribe(audio, beam_size=5)
-            
-            whisperx_segments = [
-                {
-                    "start": segment.start,
-                    "end": segment.end,
-                    "text": segment.text
-                } for segment in segments
-            ]
-            result = {"segments": whisperx_segments, "language": info.language}
-            self.progress.emit(60)
-
+            # Speaker Embedding Extraction
             if use_diarization:
-                self.status_updated.emit("Applying diarization...")
-                try:
-                    full_transcript = apply_diarization(file_path, result, encrypted_api_key, embeddings)
-                except Exception as e:
-                    logger.error(f"Diarization failed: {str(e)}")
-                    full_transcript = f"[Diarization failed: {str(e)}]\n\n" + "\n".join([seg["text"] for seg in result["segments"]])
+                self.status_updated.emit("Extracting speaker embedding...")
+                embedding = extract_speaker_embeddings(vad_segments)
+                logger.info("Speaker embedding extracted")
+                self.progress.emit(40)
+            
+            # Speaker Clustering (Diarization)
+            if use_diarization:
+                self.status_updated.emit("Performing speaker diarization...")
+                diarization_result = apply_diarization(vad_segments, embedding)
+                logger.info("Speaker diarization completed")
+                self.progress.emit(60)
+            
+            # Transcription
+            self.status_updated.emit("Transcribing audio...")
+            transcript = self._transcribe_audio(audio)
+            logger.info("Transcription completed")
+            self.progress.emit(80)
+            
+            # Alignment and speaker label assignment
+            if use_diarization:
+                self.status_updated.emit("Aligning transcription with speaker labels...")
+                final_transcript = align_transcription_with_diarization(transcript, diarization_result)
+                logger.info("Alignment completed")
             else:
-                full_transcript = "\n".join([seg["text"] for seg in result["segments"]])
-
-            if not self.cancel_flag:
-                self.progress.emit(100)
-                self.status_updated.emit("Transcription completed!")
-                self.finished.emit(full_transcript)
-
+                final_transcript = transcript
+            self.progress.emit(100)
+            
+            self.status_updated.emit("Transcription completed")
+            self.finished.emit(final_transcript)
+        
         except Exception as e:
             logger.error(f"Error during transcription: {str(e)}", exc_info=True)
             self.error.emit(f"Error during transcription: {str(e)}")
 
-    def _apply_vad(self, file_path, audio, vad_method, encrypted_api_key):
-        if vad_method == 'pyannote':
-            try:
-                return apply_pyannote_vad(file_path, encrypted_api_key)
-            except Exception as e:
-                logger.error(f"Pyannote VAD failed: {str(e)}. Falling back to energy-based VAD.")
-                self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
-                return apply_energy_vad(audio)
-        elif vad_method == 'energy':
+    def _apply_vad(self, file_path, audio, encrypted_api_key):
+        try:
+            # Decrypt API key
+            api_key = self.encryption.decrypt(encrypted_api_key)
+            return apply_pyannote_vad(file_path, api_key)
+        except Exception as e:
+            logger.error(f"Pyannote VAD failed: {str(e)}. Falling back to energy-based VAD.")
+            self.status_updated.emit("Pyannote VAD failed. Falling back to energy-based VAD.")
             return apply_energy_vad(audio)
-        else:
-            return [audio]  # No VAD, use full audio
+        
+    def _transcribe_audio(self, audio):
+        segments, info = self.whisper_model.transcribe(audio, beam_size=5)
+        return [{"start": segment.start, "end": segment.end, "text": segment.text} for segment in segments]        
 
     def cancel_transcription(self):
         self.cancel_flag = True
