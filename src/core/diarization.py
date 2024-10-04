@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from scipy.spatial.distance import cdist
-import config
+from src import config
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ import librosa
 import numpy as np
 import logging
 from pydub import AudioSegment
-import config
+from src import config
 
 logger = logging.getLogger(__name__)
 

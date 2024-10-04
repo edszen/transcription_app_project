@@ -4,7 +4,7 @@ from pydub import AudioSegment
 from pydub.silence import detect_nonsilent
 import torch
 import torchaudio
-import config
+from src import config
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from utils.audio_processing import load_audio, preprocess_audio
 from core.vad import apply_energy_vad, apply_pyannote_vad
 from core.speaker_embedding import extract_speaker_embeddings
 from core.alignment import align_transcription_with_diarization
-import config
+from src import config
 
 # Create necessary directories
 config.create_directories()

@@ -2,7 +2,7 @@ import torch
 import torchaudio
 from speechbrain.inference.speaker import EncoderClassifier
 import logging
-import config
+from src import config
 import numpy as np
 
 logger = logging.getLogger(__name__)
