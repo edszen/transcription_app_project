@@ -3,12 +3,12 @@ import os
 from faster_whisper import WhisperModel
 from PyQt5.QtCore import QObject, pyqtSignal
 import torch
-from utils.encryption import EncryptionUtils
-from core.diarization import apply_diarization
-from utils.audio_processing import load_audio, preprocess_audio
-from core.vad import apply_energy_vad, apply_pyannote_vad
-from core.speaker_embedding import extract_speaker_embeddings
-from core.alignment import align_transcription_with_diarization
+from src.utils.encryption import EncryptionUtils
+from src.core.diarization import apply_diarization
+from src.utils.audio_processing import load_audio, preprocess_audio
+from src.core.vad import apply_energy_vad, apply_pyannote_vad
+from src.core.speaker_embedding import extract_speaker_embeddings
+from src.core.alignment import align_transcription_with_diarization
 from src import config
 
 # Create necessary directories
