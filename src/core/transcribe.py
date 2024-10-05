@@ -15,10 +15,20 @@ from src import config
 # Create necessary directories
 config.create_directories()
 
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL), format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    filename=os.path.join(config.LOG_DIR, 'transcription.log'),
-                    filemode='a')
+log_file = os.path.join(config.LOG_DIR, 'transcription.log')
+logging.basicConfig(
+    level=getattr(logging, config.LOG_LEVEL),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file, mode='a'),
+        logging.StreamHandler()  # This will also print logs to console
+    ]
+)
 logger = logging.getLogger(__name__)
+
+# Log the configuration
+logger.info(f"Logging initialized. Log file: {log_file}")
+logger.info(f"Log level: {config.LOG_LEVEL}")
 
 class Transcriber(QObject):
     finished = pyqtSignal(str)
@@ -103,14 +113,17 @@ class Transcriber(QObject):
         try:
             if vad_method == "pyannote":
                 logger.info("Applying Pyannote VAD")
-                api_key = self.encryption.decrypt(encrypted_api_key)
-                return apply_pyannote_vad(file_path, api_key)
+                return apply_pyannote_vad(file_path, encrypted_api_key)
             elif vad_method == "energy":
                 logger.info("Applying energy-based VAD")
                 return apply_energy_vad(audio)
             else:
                 logger.warning(f"Unknown VAD method: {vad_method}. Falling back to energy-based VAD.")
                 return apply_energy_vad(audio)
+        except ValueError as ve:
+            logger.error(f"VAD failed due to configuration error: {str(ve)}. Falling back to energy-based VAD.")
+            self.status_updated.emit("VAD failed due to configuration error. Falling back to energy-based VAD.")
+            return apply_energy_vad(audio)
         except Exception as e:
             logger.error(f"VAD failed: {str(e)}. Falling back to energy-based VAD.")
             self.status_updated.emit("VAD failed. Falling back to energy-based VAD.")

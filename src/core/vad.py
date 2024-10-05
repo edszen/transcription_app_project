@@ -15,13 +15,19 @@ def apply_pyannote_vad(file_path, encrypted_api_key):
     try:
         logger.info("Initializing Pyannote VAD pipeline")
         encryption_utils = EncryptionUtils()
-        api_key = encryption_utils.decrypt(encrypted_api_key)
+        
+        try:
+            api_key = encryption_utils.decrypt(encrypted_api_key)
+        except Exception as decrypt_error:
+            logger.error(f"Failed to decrypt API key: {str(decrypt_error)}")
+            raise ValueError("Invalid or corrupted API key") from decrypt_error
+        
         vad_pipeline = Pipeline.from_pretrained(config.VAD_MODEL, use_auth_token=api_key)
         
         logger.info("Running Pyannote VAD")
         vad_results = vad_pipeline(file_path)
         
-        audio, sr = librosa.load(file_path, sr=None)
+        audio, sr = librosa.load(file_path, sr=config.SAMPLE_RATE)
         speech_segments = []
         for speech_turn, _, _ in vad_results.itertracks(yield_label=True):
             start_sample = int(speech_turn.start * sr)
@@ -31,6 +37,7 @@ def apply_pyannote_vad(file_path, encrypted_api_key):
         
         if not speech_segments:
             logger.warning("No speech segments detected by Pyannote VAD")
+            return apply_energy_vad(audio)
         else:
             logger.info(f"Pyannote VAD completed, found {len(speech_segments)} speech segments")
         
@@ -65,11 +72,13 @@ def apply_energy_vad(audio, min_silence_len=300, silence_thresh=-40):
         
         if not speech_segments:
             logger.warning("No speech segments detected by energy-based VAD")
+            # If no segments are detected, return the entire audio as a single segment
+            return [audio_array]
         else:
             logger.info(f"Energy-based VAD completed, found {len(speech_segments)} speech segments")
         
         return speech_segments
     except Exception as e:
         logger.error(f"Error during energy-based VAD: {str(e)}", exc_info=True)
-        logger.info("VAD failed. Returning empty list.")
-        return []  # Return an empty list when energy-based VAD fails
+        logger.info("VAD failed. Returning the entire audio as a single segment.")
+        return [audio_array]  # Return the entire audio as a single segment when VAD fails

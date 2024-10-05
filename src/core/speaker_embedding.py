@@ -27,15 +27,15 @@ def extract_speaker_embeddings(vad_segments):
             
             # Ensure the waveform is long enough (at least 1 second)
             if waveform.shape[1] < config.SAMPLE_RATE:
-                logger.warning(f"Skipping short segment at index {i}")
-                continue
+                logger.warning(f"Padding short segment at index {i}")
+                waveform = torch.nn.functional.pad(waveform, (0, config.SAMPLE_RATE - waveform.shape[1]))
             
             embedding = classifier.encode_batch(waveform)
             embeddings.append(embedding.squeeze().numpy())
             
             if i % 10 == 0:
                 logger.info(f"Processed {i+1}/{len(vad_segments)} segments")
-                
+        
         embeddings = np.array(embeddings)
         logger.info(f"Speaker embeddings extracted successfully. Shape: {embeddings.shape}")
         return embeddings
