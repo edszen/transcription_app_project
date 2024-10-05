@@ -21,7 +21,7 @@ def apply_pyannote_vad(file_path, encrypted_api_key):
         logger.info("Running Pyannote VAD")
         vad_results = vad_pipeline(file_path)
         
-        audio, sr = librosa.load(file_path, sr=config.SAMPLE_RATE)
+        audio, sr = librosa.load(file_path, sr=None)
         speech_segments = []
         for speech_turn, _, _ in vad_results.itertracks(yield_label=True):
             start_sample = int(speech_turn.start * sr)

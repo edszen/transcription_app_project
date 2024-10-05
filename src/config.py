@@ -12,7 +12,7 @@ MODELS_DIR = os.path.join(ROOT_DIR, "models")
 
 # Audio processing
 SAMPLE_RATE = 16000
-CHUNK_SIZE = 30 # seconds
+CHUNK_SIZE = 3600 # seconds
 
 # VAD
 VAD_MODEL = "pyannote/voice-activity-detection"

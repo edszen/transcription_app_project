@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 def load_audio(file_path):
     try:
-        audio, sr = librosa.load(file_path, sr=config.SAMPLE_RATE)
+        audio, sr = librosa.load(file_path, sr=config.SAMPLE_RATE, duration=None)
         return audio
     except Exception as e:
         logger.error(f"Failed to load audio file: {str(e)}")
@@ -25,6 +25,7 @@ def preprocess_audio(file_path):
         audio = librosa.util.normalize(audio)
         
         logger.info(f"Audio loaded and preprocessed successfully: {file_path}")
+        logger.info(f"Audio duration: {len(audio)/config.SAMPLE_RATE:.2f} seconds")
         return audio
     except Exception as e:
         logger.error(f"Error preprocessing audio: {str(e)}")

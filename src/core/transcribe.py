@@ -78,7 +78,7 @@ class Transcriber(QObject):
             
             # Transcription
             self.status_updated.emit("Transcribing audio...")
-            transcript = self._transcribe_audio(np.concatenate(vad_segments))
+            transcript = self._transcribe_audio(audio)
             logger.info("Transcription completed")
             self.progress.emit(80)
             

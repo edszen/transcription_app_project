@@ -18,7 +18,18 @@ def extract_speaker_embeddings(vad_segments):
         
         embeddings = []
         for i, segment in enumerate(vad_segments):
-            waveform = torch.tensor(segment).unsqueeze(0)
+            # Ensure the segment is a 1D numpy array
+            if isinstance(segment, np.ndarray) and segment.ndim == 1:
+                waveform = torch.tensor(segment).unsqueeze(0)
+            else:
+                logger.warning(f"Skipping invalid segment at index {i}")
+                continue
+            
+            # Ensure the waveform is long enough (at least 1 second)
+            if waveform.shape[1] < config.SAMPLE_RATE:
+                logger.warning(f"Skipping short segment at index {i}")
+                continue
+            
             embedding = classifier.encode_batch(waveform)
             embeddings.append(embedding.squeeze().numpy())
             
