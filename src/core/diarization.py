@@ -12,6 +12,14 @@ def apply_diarization(vad_segments, embeddings):
     try:
         logger.info("Starting speaker diarization")
         
+        # Handle the case of a single segment/speaker
+        if len(embeddings) == 1:
+            logger.info("Single segment/speaker detected, assigning a single speaker.")
+            return [{"start": vad_segments[0][0],
+                     "end": vad_segments[0][1],
+                     "speaker": "Speaker_0"
+                     }]
+        
         # Normalize embeddings
         scaler = StandardScaler()
         normalized_embeddings = scaler.fit_transform(embeddings)

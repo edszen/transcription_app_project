@@ -1,4 +1,5 @@
 import os
+from faster_whisper import WhisperModel
 
 # Project root directory
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +26,7 @@ MAX_SPEAKERS = 10
 CLUSTERING_METHOD = "agglomerative"
 
 # Transcription
-WHISPER_MODEL = "small"
+WHISPER_MODEL = "medium"
 # Device will be determined at runtime in the respective modules
 
 # Logging

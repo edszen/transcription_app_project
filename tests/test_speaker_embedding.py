@@ -22,6 +22,18 @@ class TestSpeakerEmbedding(unittest.TestCase):
         # Test empty input
         with self.assertRaises(ValueError):
             extract_speaker_embeddings([])
+    
+    def test_single_segment(self):
+        # Test with a single segment
+        with patch('src.core.speaker_embedding.EncoderClassifier') as mock_classifier:
+            mock_classifier.from_hparams.return_value.encode_batch.return_value = torch.rand(1, 192)
+            mock_segment = np.random.rand(16000)  # 1 segment of 1 second
+            
+            embeddings = extract_speaker_embeddings([mock_segment])
+            
+            self.assertIsInstance(embeddings, np.ndarray)
+            self.assertEqual(embeddings.shape[0], 1)  # One embedding
+            self.assertEqual(embeddings.shape[1], 192)  # Embedding dimension
             
 if __name__ == '__main__':
     unittest.main()

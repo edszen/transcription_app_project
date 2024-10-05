@@ -29,6 +29,10 @@ def filter_warnings(message, category, filename, lineno, file=None, line=None):
 warnings.filterwarnings("always", category=UserWarning)
 warnings.showwarning = filter_warnings
 
+class SecureCodingDelegate(QObject):
+    def applicationSupportsSecureRestorableState(self):
+        return True
+
 class SpeakerIdentificationDialog(QDialog):
     def __init__(self, speaker_count, parent=None):
         super().__init__(parent)
@@ -161,7 +165,7 @@ class TranscriptionApp(QWidget):
             
             self.logger.info(f"Starting transcription with diarization: {use_diarization}, VAD method: {vad_method}")
             self.thread = threading.Thread(target=self.transcriber.transcribe, 
-                                        args=(file_path, use_diarization, api_key_encrypted, vad_method))
+                                           args=(file_path, use_diarization, api_key_encrypted, vad_method))
             self.thread.start()
         else:
             QMessageBox.warning(self, 'Error', 'No file selected')

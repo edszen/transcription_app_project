@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 
 def extract_speaker_embeddings(vad_segments):
     try:
+        if not vad_segments:
+            logger.error("Empty list of VAD segments provided")
+            raise ValueError("VAD segments list is empty")
+        
         logger.info("Loading SpeechBrain ECAPA-TDNN model for speaker embedding")
         classifier = EncoderClassifier.from_hparams(source=config.SPEAKER_EMBEDDING_MODEL)
         

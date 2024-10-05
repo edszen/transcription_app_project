@@ -5,7 +5,7 @@ from src.core.diarization import apply_diarization
 class TestDiarization(unittest.TestCase):
     
     def test_apply_diarization(self):
-        # MOck VAD segments and embeddings
+        # MOck VAD segments and embeddings for multiple speakers
         mock_segments = [(0, 1), (1, 2), (2, 3)] # 3 segments of 1 second each
         mock_embeddings = np.random.rand(3, 128) # 3 segments of 128 dimensions
         
@@ -24,6 +24,8 @@ class TestDiarization(unittest.TestCase):
         
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]['speaker'], 'Speaker_0')
+        self.assertEqual(result[0]['start'], 0)
+        self.assertEqual(result[0]['end'], 1)
         
 if __name__ == '__main__':
     unittest.main()
