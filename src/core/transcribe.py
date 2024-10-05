@@ -134,13 +134,26 @@ class Transcriber(QObject):
         return [{"start": segment.start, "end": segment.end, "text": segment.text} for segment in segments]
 
     def _format_transcript(self, transcript):
-
         formatted = ""
+        speaker_count = {}
         for segment in transcript:
             start = f"{int(segment['start'] // 60):02d}:{int(segment['start'] % 60):02d}"
             end = f"{int(segment['end'] // 60):02d}:{int(segment['end'] % 60):02d}"
-            speaker = f"Speaker {segment['speaker']}" if 'speaker' in segment else "Speaker Unknown"
-            formatted += f"{start} - {end} | {speaker}: {segment['text']}\n"
+            
+            if 'speaker' in segment:
+                speaker = segment['speaker']
+                if speaker not in speaker_count:
+                    speaker_count[speaker] = len(speaker_count) + 1
+                speaker_label = f"Speaker {speaker_count[speaker]}"
+            else:
+                speaker_label = "Speaker Unknown"
+            
+            logger.debug(f"Formatting segment: {start}-{end}, Original speaker: {segment.get('speaker', 'Unknown')}, Assigned label: {speaker_label}")
+            
+            formatted += f"{start} - {end} | {speaker_label}: {segment['text']}\n"
+        
+        logger.info(f"Transcript formatted with {len(speaker_count)} unique speakers")
+        logger.debug(f"Speaker count: {speaker_count}")
         return formatted
 
     def cancel_transcription(self):
