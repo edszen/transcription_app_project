@@ -1,101 +1,68 @@
 import logging
 import torch
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering
-from sklearn.preprocessing import StandardScaler
-from scipy.spatial.distance import cdist
+from pyannote.audio import Pipeline
 from src import config
-import whisperx
 from src.utils.encryption import EncryptionUtils
-import pandas as pd
+import torchaudio
 
 logger = logging.getLogger(__name__)
 
-def count_speakers(segments):
-    """
-    Count the number of unique speakers in the segments.
-    """
-    unique_speakers = set(segment.get('speaker', 'UNKNOWN') for segment in segments)
-    speaker_count = len(unique_speakers)
-    logger.info(f"Detected {speaker_count} unique speakers")
-    return speaker_count
-
-def apply_diarization(audio_path, encrypted_api_key, vad_segments, embeddings, transcription):
+def apply_diarization(audio_path, encrypted_api_key):
     try:
-        logger.info("Starting speaker diarization")
-        
-        # Handle the case of a single segment/speaker
-        if len(embeddings) == 1:
-            logger.info("Single segment/speaker detected, assigning a single speaker.")
-            return [{"start": vad_segments[0][0],
-                     "end": vad_segments[0][1],
-                     "speaker": "Speaker_0"
-                     }]
-        
-        # Normalize embeddings
-        scaler = StandardScaler()
-        normalized_embeddings = scaler.fit_transform(embeddings)
-        
-        # Perform clustering
-        clustering = AgglomerativeClustering(
-            n_clusters=min(len(embeddings), config.MAX_SPEAKERS),
-            metric='euclidean',
-            linkage='ward'
-        )
-        labels = clustering.fit_predict(normalized_embeddings)
-        
-        # Initialize WhisperX
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-        logger.info(f"Using device: {device}")
+        logger.info("Starting speaker diarization with Pyannote")
         
         # Decrypt the API key
         encryption_utils = EncryptionUtils()
         api_key = encryption_utils.decrypt(encrypted_api_key)
         
+        # Determine the device
+        device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"Using device: {device}")
+        
+        # Load Pyannote pipeline
+        pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=api_key)
+        pipeline = pipeline.to(torch.device(device))
+        
         # Load audio
-        audio = whisperx.load_audio(audio_path)
+        waveform, sample_rate = torchaudio.load(audio_path)
         
-        # Load diarization model
-        diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
+        # Ensure audio is mono and at 16kHz
+        if waveform.shape[0] > 1:
+            waveform = waveform.mean(dim=0, keepdim=True)
+        if sample_rate != config.SAMPLE_RATE:
+            waveform = torchaudio.functional.resample(waveform, sample_rate, config.SAMPLE_RATE)
         
-        # Diarize
-        diarize_segments = diarize_model(audio)
+        # Run diarization
+        diarization = pipeline({"waveform": waveform, "sample_rate": config.SAMPLE_RATE})
         
-        # Log the structure of diarize_segments
-        logger.info(f"Diarize segments type: {type(diarize_segments)}")
-        logger.info(f"Diarize segments columns: {diarize_segments.columns if isinstance(diarize_segments, pd.DataFrame) else 'Not a DataFrame'}")
-        
-        # Assign speaker labels to segments
+        # Process diarization results
         diarization_result = []
-        for i, (segment, label) in enumerate(zip(vad_segments, labels)):
-            whisperx_speaker = find_matching_whisperx_speaker(segment, diarize_segments)
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
             diarization_result.append({
-                "start": segment[0],
-                "end": segment[1],
-                "speaker": f"Speaker_{label}",
-                "whisperx_speaker": whisperx_speaker
+                "start": turn.start,
+                "end": turn.end,
+                "speaker": speaker
             })
-            
-        logger.info(f"Diarization completed. Found {len(set(labels))} speakers.")
+        
+        logger.info(f"Diarization completed. Found {len(set(segment['speaker'] for segment in diarization_result))} speakers.")
         return diarization_result
+    
     except Exception as e:
         logger.error(f"Error during diarization: {str(e)}")
         raise
-        
-def find_matching_whisperx_speaker(segment, diarize_segments):
-    if isinstance(diarize_segments, pd.DataFrame):
-        matching_segments = diarize_segments[
-            (diarize_segments['start'] <= segment[1]) & 
-            (diarize_segments['end'] >= segment[0])
-        ]
-        if not matching_segments.empty:
-            return matching_segments.iloc[0]['speaker']
-    else:
-        logger.warning("Unexpected type for diarize_segments. Expected DataFrame.")
-    return "Unknown"
+
+def count_speakers(segments):
+    """
+    Count the number of unique speakers in the segments.
+    """
+    unique_speakers = set(segment['speaker'] for segment in segments)
+    speaker_count = len(unique_speakers)
+    logger.info(f"Detected {speaker_count} unique speakers")
+    return speaker_count
 
 def find_matching_transcription(segment, transcription):
     for trans in transcription:
-        if (trans['start'] <= segment[1] and trans["end"] >= segment[0]):
+        if (trans['start'] <= segment['end'] and trans['end'] >= segment['start']):
             return trans['text']
     return ""

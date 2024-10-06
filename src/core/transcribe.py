@@ -91,13 +91,16 @@ class Transcriber(QObject):
             
             if use_diarization:
                 self.status_updated.emit("Performing speaker diarization...")
-                diarize_model = whisperx.DiarizationPipeline(use_auth_token=api_key, device=device)
-                diarize_segments = diarize_model(audio)
-                result = whisperx.assign_word_speakers(diarize_segments, result)
+                diarization_result = apply_diarization(file_path, encrypted_api_key)
                 self.progress.emit(90)
-            
+
+                # Align diarization with transcription
+                aligned_result = self._align_diarization_with_transcription(result["segments"], diarization_result)
+            else:
+                aligned_result = result["segments"]
+
             self.status_updated.emit("Formatting transcript...")
-            formatted_transcript = self._format_transcript(result["segments"])
+            formatted_transcript = self._format_transcript(aligned_result)
             
             self.status_updated.emit("Transcription completed")
             self.finished.emit(formatted_transcript)
@@ -127,6 +130,18 @@ class Transcriber(QObject):
             self.status_updated.emit("VAD failed. Falling back to energy-based VAD.")
             return apply_energy_vad(audio)
 
+    def _align_diarization_with_transcription(self, transcription, diarization):
+        aligned_result = []
+        for segment in transcription:
+            matching_diar = next((d for d in diarization if d['start'] <= segment['end'] and d['end'] >= segment['start']), None)
+            if matching_diar:
+                segment['speaker'] = matching_diar['speaker']
+            else:
+                segment['speaker'] = 'UNKNOWN'
+            aligned_result.append(segment)
+        return aligned_result
+
+    # Update the _format_transcript method
     def _format_transcript(self, segments):
         formatted = ""
         speaker_count = {}
