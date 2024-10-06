@@ -23,12 +23,13 @@ def align_transcription_with_diarization(transcription, diarization_result):
                                  max(d['start'], trans_segment['start']))
                 
                 overlap = min(best_match['end'], trans_segment['end']) - max(best_match['start'], trans_segment['start'])
-                logger.debug(f"  Best match: Speaker {best_match['speaker']}, overlap: {overlap:.2f}s")
+                logger.debug(f"  Best match: Speaker {best_match['speaker']}, WhisperX: {best_match.get('whisperx_speaker', 'Unknown')}, overlap: {overlap:.2f}s")
                 
                 aligned_transcript.append({
                     "start": trans_segment['start'],
                     "end": trans_segment['end'],
                     "speaker": best_match['speaker'],
+                    "whisperx_speaker": best_match.get('whisperx_speaker', 'Unknown'),
                     "text": trans_segment['text']
                 })
             else:
@@ -37,6 +38,7 @@ def align_transcription_with_diarization(transcription, diarization_result):
                     "start": trans_segment['start'],
                     "end": trans_segment['end'],
                     "speaker": "UNKNOWN",
+                    "whisperx_speaker": "UNKNOWN",
                     "text": trans_segment['text']
                 })
         
@@ -47,4 +49,4 @@ def align_transcription_with_diarization(transcription, diarization_result):
         logger.error(f"Error during alignment: {str(e)}", exc_info=True)
         # In case of error, return the original transcription without speaker labels
         logger.warning("Returning original transcription without speaker labels due to alignment error")
-        return [{"start": seg['start'], "end": seg['end'], "speaker": "UNKNOWN", "text": seg['text']} for seg in transcription]
+        return [{"start": seg['start'], "end": seg['end'], "speaker": "UNKNOWN", "whisperx_speaker": "UNKNOWN", "text": seg['text']} for seg in transcription]
