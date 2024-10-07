@@ -12,6 +12,7 @@ from src.core.speaker_embedding import extract_speaker_embeddings
 from src.core.alignment import align_transcription_with_diarization
 from src import config
 import whisperx
+from src.core.linguistic_processing import linguistic_post_processing
 
 # Create necessary directories
 config.create_directories()
@@ -97,6 +98,11 @@ class Transcriber(QObject):
                 self.status_updated.emit("Aligning diarization with transcription...")
                 aligned_result = align_transcription_with_diarization(result, diarization_result)
                 logger.info(f"Alignment completed. Alignment segments: {len(aligned_result)}")
+                
+                # Apply linguistic post-processing (new step)
+                self.status_updated.emit("Applying linguistic post-processing...")
+                aligned_result = linguistic_post_processing(aligned_result)
+                logger.info("Linguistic post-processing completed")
             else:
                 aligned_result = result["segments"]
 
