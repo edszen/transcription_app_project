@@ -154,7 +154,6 @@ class TranscriptionApp(QWidget):
             
             use_diarization = self.settings.value("use_diarization", False, type=bool)
             api_key_encrypted = self.settings.value("huggingface_api_key", "")
-            vad_method = self.settings.value("vad_method", "pyannote")
             
             self.transcriber = Transcriber()
             self.transcriber.finished.connect(self.update_transcription)
@@ -163,9 +162,9 @@ class TranscriptionApp(QWidget):
             self.transcriber.status_updated.connect(self.update_status)
             self.transcriber.chunk_progress.connect(self.update_chunk_progress)
             
-            self.logger.info(f"Starting transcription with diarization: {use_diarization}, VAD method: {vad_method}")
+            self.logger.info(f"Starting transcription with diarization: {use_diarization}")
             self.thread = threading.Thread(target=self.transcriber.transcribe, 
-                                           args=(file_path, use_diarization, api_key_encrypted, vad_method))
+                                           args=(file_path, use_diarization, api_key_encrypted))
             self.thread.start()
         else:
             QMessageBox.warning(self, 'Error', 'No file selected')
@@ -339,24 +338,9 @@ class SettingsDialog(QDialog):
         # Diarization checkbox
         self.diarization_checkbox = QCheckBox("Enable Speaker Diarization")
         self.diarization_checkbox.setChecked(
-            self.settings.value("use_diarization", False, type=bool)
+            self.settings.value("use_diarization", True, type=bool)
         )
         layout.addWidget(self.diarization_checkbox)
-
-        # VAD method selection
-        vad_layout = QHBoxLayout()
-        vad_layout.addWidget(QLabel("VAD Method:"))
-        self.vad_combo = QComboBox()
-        self.vad_combo.addItems(["No VAD", "Energy-based VAD", "Pyannote VAD"])
-        current_vad = self.settings.value("vad_method", "pyannote")
-        if current_vad == "none":
-            self.vad_combo.setCurrentIndex(0)
-        elif current_vad == "energy":
-            self.vad_combo.setCurrentIndex(1)
-        elif current_vad == "pyannote":
-            self.vad_combo.setCurrentIndex(2)
-        vad_layout.addWidget(self.vad_combo)
-        layout.addLayout(vad_layout)
 
         # API Key input layout
         api_key_layout = QVBoxLayout()
@@ -377,7 +361,7 @@ class SettingsDialog(QDialog):
         api_key_layout.addWidget(self.api_key_input)
         
         # Add instructions for obtaining API key
-        instructions = QLabel("To use Pyannote VAD, you need a Hugging Face API key. "
+        instructions = QLabel("To use Pyannote, you need a Hugging Face API key. "
                               "Visit https://huggingface.co/settings/tokens to create one. "
                               "Make sure to accept the user conditions for 'pyannote/voice-activity-detection' "
                               "at https://huggingface.co/pyannote/voice-activity-detection")
@@ -398,15 +382,6 @@ class SettingsDialog(QDialog):
         # Save the checkbox state
         use_diarization = self.diarization_checkbox.isChecked()
         self.settings.setValue("use_diarization", use_diarization)
-
-        # Save VAD method
-        vad_index = self.vad_combo.currentIndex()
-        if vad_index == 0:
-            self.settings.setValue("vad_method", "none")
-        elif vad_index == 1:
-            self.settings.setValue("vad_method", "energy")
-        elif vad_index == 2:
-            self.settings.setValue("vad_method", "pyannote")
 
         # Encrypt and save the API key
         api_key = self.api_key_input.text().strip()

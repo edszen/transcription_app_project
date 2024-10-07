@@ -51,6 +51,22 @@ def apply_diarization(audio_path, encrypted_api_key):
     except Exception as e:
         logger.error(f"Error during diarization: {str(e)}")
         raise
+    
+def assign_speakers(segments, diarization_result):
+    logger.info(f"Assigning speakers to {len(segments)} segments using {len(diarization_result)} diarization results")
+    for segment in segments:
+        segment_start = segment['start']
+        segment_end = segment['end']
+        try:
+            matching_speaker = next(
+                (d['speaker'] for d in diarization_result if d['start'] <= segment_start and d['end'] >= segment_end),
+                "Unknown"
+            )
+            segment['speaker'] = f"Speaker {matching_speaker}"
+        except Exception as e:
+            logger.warning(f"Error assigning speaker for segment {segment_start}-{segment_end}: {str(e)}")
+            segment['speaker'] = "Unknown Speaker"
+    return segments
 
 def count_speakers(segments):
     """
