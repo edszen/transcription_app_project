@@ -1,12 +1,13 @@
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QLineEdit, QCheckBox, QPushButton)
+                             QLineEdit, QCheckBox, QPushButton, QComboBox)
 from PyQt5.QtCore import QSettings
 from utils.encryption import EncryptionUtils
+from src import config
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.settings = QSettings("YourCompany", "AudioTranscriptionApp")
+        self.settings = QSettings("SZ Apps", "AudioTranscriptionApp")
         self.encryption_utils = EncryptionUtils()
         self.init_ui()
 
@@ -20,19 +21,34 @@ class SettingsDialog(QDialog):
         )
         layout.addWidget(self.diarization_checkbox)
 
-        # API Key input layout
-        api_key_layout = QHBoxLayout()
-        api_key_layout.addWidget(QLabel("Hugging Face API Key:"))
-        self.api_key_input = QLineEdit()
+        # Hugging Face API Key input
+        hf_api_key_layout = QHBoxLayout()
+        hf_api_key_layout.addWidget(QLabel("Hugging Face API Key:"))
+        self.hf_api_key_input = QLineEdit()
+        encrypted_hf_key = self.settings.value("huggingface_api_key", "")
+        if encrypted_hf_key:
+            decrypted_hf_key = self.encryption_utils.decrypt(encrypted_hf_key)
+            self.hf_api_key_input.setText(decrypted_hf_key)
+        hf_api_key_layout.addWidget(self.hf_api_key_input)
+        layout.addLayout(hf_api_key_layout)
         
-        # Load and decrypt the API key if it exists
-        encrypted_key = self.settings.value("huggingface_api_key", "")
-        if encrypted_key:
-            decrypted_key = self.encryption_utils.decrypt(encrypted_key)
-            self.api_key_input.setText(decrypted_key)
-        
-        api_key_layout.addWidget(self.api_key_input)
-        layout.addLayout(api_key_layout)
+        # OpenAI API Key input (not encrypted)
+        openai_api_key_layout = QHBoxLayout()
+        openai_api_key_layout.addWidget(QLabel("OpenAI API Key:"))
+        self.openai_api_key_input = QLineEdit()
+        self.openai_api_key_input.setText(self.settings.value("openai_api_key", ""))
+        openai_api_key_layout.addWidget(self.openai_api_key_input)
+        layout.addLayout(openai_api_key_layout)
+
+        # OpenAI Model selection
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("OpenAI Model:"))
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(config.AVAILABLE_MODELS)
+        current_model = self.settings.value("openai_model", config.CHATGPT_MODEL)
+        self.model_combo.setCurrentText(current_model)
+        model_layout.addWidget(self.model_combo)
+        layout.addLayout(model_layout)
 
         # Save button
         save_button = QPushButton("Save Settings")
@@ -44,13 +60,21 @@ class SettingsDialog(QDialog):
 
 
     def save_settings(self):
-        # Save the checkbox state
+        # Save diarization setting
         use_diarization = self.diarization_checkbox.isChecked()
         self.settings.setValue("use_diarization", use_diarization)
 
-        # Encrypt and save the API key
-        api_key = self.api_key_input.text()
-        encrypted_key = self.encryption_utils.encrypt(api_key)
-        self.settings.setValue("huggingface_api_key", encrypted_key)
+        # Encrypt and save Hugging Face API key
+        hf_api_key = self.hf_api_key_input.text()
+        encrypted_hf_key = self.encryption_utils.encrypt(hf_api_key)
+        self.settings.setValue("huggingface_api_key", encrypted_hf_key)
+
+        # Save OpenAI API key (not encrypted)
+        openai_api_key = self.openai_api_key_input.text()
+        self.settings.setValue("openai_api_key", openai_api_key)
+
+        # Save selected OpenAI model
+        selected_model = self.model_combo.currentText()
+        self.settings.setValue("openai_model", selected_model)
 
         self.accept()

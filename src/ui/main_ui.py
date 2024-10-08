@@ -13,9 +13,9 @@ import logging
 from src.core.transcribe import Transcriber
 import os
 from core.transcribe import Transcriber
-
+from src.api.openai_chat import ChatGPTIntegration
 import warnings
-import re
+from src import config
 
 # Project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -69,8 +69,9 @@ class TranscriptionApp(QWidget):
     def __init__(self):
         super().__init__()
         self.speaker_names = {}
-        self.settings = QSettings("YourCompany", "AudioTranscriptionApp")
+        self.settings = QSettings("SZ Apps", "AudioTranscriptionApp")
         self.encryption_utils = EncryptionUtils()
+        self.chatgpt = ChatGPTIntegration()
         self.init_ui()
         self.transcribing_timer = QTimer()
         self.transcribing_timer.timeout.connect(self.update_transcribing_message)
@@ -94,6 +95,28 @@ class TranscriptionApp(QWidget):
         layout = QVBoxLayout()
         button_layout = QHBoxLayout()
         
+        # OpenAI API Key input
+        api_key_layout = QHBoxLayout()
+        api_key_layout.addWidget(QLabel("OpenAI API Key:"))
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setText(self.settings.value("openai_api_key", ""))
+        api_key_layout.addWidget(self.api_key_input)
+        save_api_key_button = QPushButton("Save API Key")
+        save_api_key_button.clicked.connect(self.save_chatgpt_api_key)
+        api_key_layout.addWidget(save_api_key_button)
+        layout.addLayout(api_key_layout)
+
+        # OpenAI Model selection
+        model_layout = QHBoxLayout()
+        model_layout.addWidget(QLabel("OpenAI Model:"))
+        self.model_combo = QComboBox()
+        self.model_combo.addItems(config.AVAILABLE_MODELS)
+        current_model = self.settings.value("openai_model", config.CHATGPT_MODEL)
+        self.model_combo.setCurrentText(current_model)
+        self.model_combo.currentTextChanged.connect(self.save_chatgpt_model)
+        model_layout.addWidget(self.model_combo)
+        layout.addLayout(model_layout)
+        
         self.upload_button = QPushButton('Upload and Transcribe Audio')
         self.upload_button.clicked.connect(self.upload_and_transcribe)
         self.cancel_button = QPushButton('Cancel Transcription')
@@ -111,6 +134,18 @@ class TranscriptionApp(QWidget):
         self.text_area.setReadOnly(True)
         self.help_button = QPushButton('Help')
         self.help_button.clicked.connect(self.show_help)
+        
+        # ChatGPT integration
+        self.chat_input = QLineEdit()
+        self.chat_button = QPushButton('Ask ChatGPT')
+        self.chat_button.clicked.connect(self.ask_chatgpt)
+        chat_layout = QHBoxLayout()
+        chat_layout.addWidget(self.chat_input)
+        chat_layout.addWidget(self.chat_button)
+        layout.addLayout(chat_layout)
+        self.refresh_chatgpt_button = QPushButton('Refresh ChatGPT Settings')
+        self.refresh_chatgpt_button.clicked.connect(self.refresh_chatgpt_settings)
+        layout.addWidget(self.refresh_chatgpt_button)
         
         self.edit_speakers_button = QPushButton('Edit Speakers')
         self.edit_speakers_button.clicked.connect(self.edit_speakers)
@@ -132,6 +167,16 @@ class TranscriptionApp(QWidget):
         self.setLayout(layout)
         self.setWindowTitle('Audio Transcription App')
         self.setGeometry(300, 300, 600, 400)
+        
+    def save_chatgpt_api_key(self):
+        api_key = self.api_key_input.text().strip()
+        self.settings.setValue("openai_api_key", api_key)
+        self.chatgpt.load_settings()
+        QMessageBox.information(self, "API Key Saved", "Your OpenAI API key has been saved.")
+
+    def save_chatgpt_model(self, model):
+        self.settings.setValue("openai_model", model)
+        self.chatgpt.load_settings()
 
     def show_help(self):
         dialog = HelpDialog(self)
@@ -141,6 +186,20 @@ class TranscriptionApp(QWidget):
         dialog = SettingsDialog(self)
         if dialog.exec_():
             self.logger.info("Settings updated")
+            
+    def refresh_chatgpt_settings(self):
+        self.chatgpt.load_settings()
+        QMessageBox.information(self, "Settings Refreshed", "ChatGPT settings have been refreshed.")
+            
+    def ask_chatgpt(self):
+        question = self.chat_input.text()
+        if not question:
+            return
+        
+        transcript = self.text_area.toPlainText()
+        response = self.chatgpt.answer_question(transcript, question)
+        
+        self.text_area.append(f"\n\nQ: {question}\nA: {response}")
 
     def upload_and_transcribe(self):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a *.ogg *.mp4);;All Files (*)')
@@ -242,6 +301,11 @@ class TranscriptionApp(QWidget):
         self.logger.info("Transcription and processing completed and displayed")
         
         self.save_button.setVisible(True)
+        
+        # Add summary and topic analysis
+        summary = self.chatgpt.summarize_transcript(text)
+        topics = self.chatgpt.analyze_topics(text)
+        self.text_area.append(f"\n\nSummary:\n{summary}\n\nMain Topics:\n{topics}")
             
     def save_transcript(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Save Transcript", "", "Text Files (*.txt)")

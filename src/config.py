@@ -1,5 +1,5 @@
 import os
-from faster_whisper import WhisperModel
+
 
 # Project root directory
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -38,6 +38,25 @@ ENCRYPTION_KEY_FILE = os.path.join(ROOT_DIR, "src", "utils", "encryption.key")
 
 # API
 HUGGINGFACE_API_MODEL = "pyannote/voice-activity-detection"
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# ChatGPT model config
+CHATGPT_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")  # Default to gpt-3.5-turbo if not set
+
+AVAILABLE_MODELS = [
+    "gpt-3.5-turbo",
+    "gpt-3.5-turbo-16k",
+    "gpt-4",
+    "gpt-4-32k",
+    "gpt-4-1106-preview",
+    "gpt-4-vision-preview"
+]
+
+# API Version constant
+OPENAI_API_VERSION = "2024-10-01"
+
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
 
 # UI
 HELP_DIALOG_WIDTH = 400
