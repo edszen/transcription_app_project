@@ -1,6 +1,8 @@
 from openai import OpenAI
 from src import config
 from PyQt5.QtCore import QSettings
+import time
+
 
 class ChatGPTIntegration:
     def __init__(self):
