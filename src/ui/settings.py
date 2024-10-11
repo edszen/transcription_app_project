@@ -7,7 +7,7 @@ from src import config
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.settings = QSettings("SZ Apps", "AudioTranscriptionApp")
+        self.settings = QSettings("SZ Apps", "GatherScribe")
         self.encryption_utils = EncryptionUtils()
         self.init_ui()
 
@@ -32,7 +32,7 @@ class SettingsDialog(QDialog):
         hf_api_key_layout.addWidget(self.hf_api_key_input)
         layout.addLayout(hf_api_key_layout)
         
-        # OpenAI API Key input (not encrypted)
+        # OpenAI API Key input (Not encrypted)
         openai_api_key_layout = QHBoxLayout()
         openai_api_key_layout.addWidget(QLabel("OpenAI API Key:"))
         self.openai_api_key_input = QLineEdit()
@@ -69,7 +69,7 @@ class SettingsDialog(QDialog):
         encrypted_hf_key = self.encryption_utils.encrypt(hf_api_key)
         self.settings.setValue("huggingface_api_key", encrypted_hf_key)
 
-        # Save OpenAI API key (not encrypted)
+        # Save OpenAI API key
         openai_api_key = self.openai_api_key_input.text()
         self.settings.setValue("openai_api_key", openai_api_key)
 
