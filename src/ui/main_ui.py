@@ -4,15 +4,13 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QT
                              QFileDialog, QMessageBox, QProgressBar, QHBoxLayout, QDialog,
                              QLabel, QLineEdit, QDialogButtonBox, QCheckBox, QComboBox)
 from PyQt5.QtCore import pyqtSlot, QTimer, QSettings, QObject
-from core.transcribe import Transcriber
-from ui.settings import SettingsDialog
-from ui.help_dialog import HelpDialog
+from src.ui.settings import SettingsDialog
+from src.ui.help_dialog import HelpDialog
 import re
 from utils.encryption import EncryptionUtils
 import logging
 from src.core.transcribe import Transcriber
 import os
-from core.transcribe import Transcriber
 from src.api.openai_chat import ChatGPTIntegration
 from src import config
 
