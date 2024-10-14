@@ -2,7 +2,7 @@ import sys
 import threading
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QTextEdit, 
                              QFileDialog, QMessageBox, QProgressBar, QHBoxLayout, QDialog,
-                             QLabel, QLineEdit, QDialogButtonBox, QCheckBox, QComboBox)
+                             QLabel, QLineEdit, QDialogButtonBox, QCheckBox, QComboBox, QSplitter)
 from PyQt5.QtCore import pyqtSlot, QTimer, QSettings, QObject
 from src.ui.settings import SettingsDialog
 from src.ui.help_dialog import HelpDialog
@@ -13,6 +13,7 @@ from src.core.transcribe import Transcriber
 import os
 from src.api.openai_chat import ChatGPTIntegration
 from src import config
+from src.ui.chat.chat_widget import ChatWidget
 
 # Project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -75,7 +76,10 @@ class TranscriptionApp(QWidget):
         self.logger = logging.getLogger(__name__)
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
+        
+        # Left side (Transcription)
+        left_layout = QVBoxLayout()
         
         # Transcription buttons
         transcription_layout = QHBoxLayout()
@@ -86,7 +90,7 @@ class TranscriptionApp(QWidget):
         self.cancel_button.setEnabled(False)
         transcription_layout.addWidget(self.upload_button)
         transcription_layout.addWidget(self.cancel_button)
-        layout.addLayout(transcription_layout)
+        left_layout.addLayout(transcription_layout)
         
         # Settings and Help buttons
         button_layout = QHBoxLayout()
@@ -96,30 +100,35 @@ class TranscriptionApp(QWidget):
         self.help_button.clicked.connect(self.show_help)
         button_layout.addWidget(self.settings_button)
         button_layout.addWidget(self.help_button)
-        layout.addLayout(button_layout)
+        left_layout.addLayout(button_layout)
         
         # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        layout.addWidget(self.progress_bar)
+        left_layout.addWidget(self.progress_bar)
         
         # Transcription text area
         self.text_area = QTextEdit()
         self.text_area.setReadOnly(True)
-        layout.addWidget(self.text_area)
+        left_layout.addWidget(self.text_area)
         
-        # ChatGPT integration
-        chat_layout = QHBoxLayout()
-        self.chat_input = QLineEdit()
-        self.chat_button = QPushButton('Ask ChatGPT')
-        self.chat_button.clicked.connect(self.ask_chatgpt)
-        chat_layout.addWidget(self.chat_input)
-        chat_layout.addWidget(self.chat_button)
-        layout.addLayout(chat_layout)
+        # Right side (Chat)
+        self.chat_widget = ChatWidget()
+        self.chat_widget.new_question.connect(self.ask_chatgpt)
         
-        self.setLayout(layout)
+        # Adding both sides to a splitter
+        splitter = QSplitter()
+        left_widget = QWidget()
+        left_widget.setLayout(left_layout)
+        splitter.addWidget(left_widget)
+        splitter.addWidget(self.chat_widget)
+        
+        main_layout.addWidget(splitter)
+        
+        self.setLayout(main_layout)
         self.setWindowTitle('GatherScribe')
-        self.setGeometry(300, 300, 600, 400)
+        self.setGeometry(100, 100, 1200, 800)
+
 
     def show_help(self):
         dialog = HelpDialog(self)
@@ -131,15 +140,10 @@ class TranscriptionApp(QWidget):
             self.logger.info("Settings updated")
             self.chatgpt.load_settings()
             
-    def ask_chatgpt(self):
-        question = self.chat_input.text()
-        if not question:
-            return
-        
+    def ask_chatgpt(self, question):
         transcript = self.text_area.toPlainText()
         response = self.chatgpt.answer_question(transcript, question)
-        
-        self.text_area.append(f"\n\nQ: {question}\nA: {response}")
+        self.chat_widget.add_response(response)
 
     def upload_and_transcribe(self):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a *.ogg *.mp4);;All Files (*)')
