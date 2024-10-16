@@ -2,12 +2,9 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTextEdit,
                              QProgressBar, QHBoxLayout,QFileDialog, QMessageBox)
 from PyQt5.QtCore import pyqtSlot, QSettings, QTimer
 from src.core.transcribe import Transcriber
-from src.ui.settings import SettingsDialog
-from src.ui.help_dialog import HelpDialog
 
 class TranscriptionWidget(QWidget):
     def __init__(self, settings):
-
         super().__init__()
         self.settings = settings
         self.transcriber = None
@@ -19,26 +16,11 @@ class TranscriptionWidget(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
         
-        # Transcription buttons
-        button_layout = QHBoxLayout()
-        self.upload_button = QPushButton('Upload and Transcribe Audio')
-        self.upload_button.clicked.connect(self.upload_and_transcribe)
+        # Cancel button
         self.cancel_button = QPushButton('Cancel Transcription')
         self.cancel_button.clicked.connect(self.cancel_transcription)
         self.cancel_button.setEnabled(False)
-        button_layout.addWidget(self.upload_button)
-        button_layout.addWidget(self.cancel_button)
-        layout.addLayout(button_layout)
-        
-        # Settings and Help buttons
-        button_layout = QHBoxLayout()
-        self.settings_button = QPushButton('Settings')
-        self.settings_button.clicked.connect(self.open_settings)
-        self.help_button = QPushButton('Help')
-        self.help_button.clicked.connect(self.show_help)
-        button_layout.addWidget(self.settings_button)
-        button_layout.addWidget(self.help_button)
-        layout.addLayout(button_layout)
+        layout.addWidget(self.cancel_button)
         
         # Progress bar
         self.progress_bar = QProgressBar()
@@ -59,7 +41,6 @@ class TranscriptionWidget(QWidget):
 
     def start_transcription(self, file_path):
         self.text_area.setText("Initializing transcription...")
-        self.upload_button.setEnabled(False)
         self.cancel_button.setEnabled(True)
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
@@ -80,14 +61,12 @@ class TranscriptionWidget(QWidget):
             self.transcriber.cancel_transcription()
         self.cancel_button.setEnabled(False)
         self.text_area.setText("Cancelling transcription...")
-        self.upload_button.setEnabled(True)
         self.progress_bar.setVisible(False)
 
     @pyqtSlot(str)
     def update_transcription(self, text):
         formatted_text = self.format_transcript(text)
         self.text_area.setHtml(formatted_text)
-        self.upload_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         self.progress_bar.setVisible(False)
 
@@ -117,20 +96,9 @@ class TranscriptionWidget(QWidget):
         dots = "." * self.dot_count
         self.text_area.setText(f"Transcribing{dots}")
         
-    def show_help(self):
-        dialog = HelpDialog(self)
-        dialog.exec_()
-
-    def open_settings(self):
-        dialog = SettingsDialog(self)
-        if dialog.exec_():
-            self.logger.info("Settings updated")
-            self.chatgpt.load_settings()
-    
     @pyqtSlot(str)
     def show_error(self, error_message):
         QMessageBox.critical(self, 'Error', error_message)
-        self.upload_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         self.progress_bar.setVisible(False)
         self.text_area.setText("Transcription failed. Please try again.")

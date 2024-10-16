@@ -1,10 +1,14 @@
 from openai import OpenAI
 from src import config
-from PyQt5.QtCore import QSettings
+from PyQt5.QtCore import QSettings, QObject, pyqtSignal
 import logging
 
-class ChatGPTIntegration:
+class ChatGPTIntegration(QObject):
+    response_received = pyqtSignal(str)
+    error_occurred = pyqtSignal(str)
+    
     def __init__(self):
+        super().__init__() # Initialize the QObject
         self.settings = QSettings("SZ Apps", "GatherScribe")
         self.client = None
         self.model = None
@@ -19,11 +23,14 @@ class ChatGPTIntegration:
             self.logger.info(f"ChatGPT settings loaded. Using model: {self.model}")
         else:
             self.logger.warning("No OpenAI API key found in settings.")
+            self.error_occurred.emit("No OpenAI API key found in settings.")
 
     def generate_response(self, prompt, model=None):
         if not self.client:
-            self.logger.error("OpenAI API key not set. Please check your settings.")
-            return "Error: OpenAI API key not set. Please check your settings."
+            error_message = "OpenAI API key not set. Please check your settings."
+            self.logger.error(error_message)
+            self.error_occurred.emit(error_message)
+            return error_message
 
         selected_model = model or self.model
         try:
@@ -34,10 +41,14 @@ class ChatGPTIntegration:
                     {"role": "user", "content": prompt}
                 ]
             )
-            return response.choices[0].message.content
+            response_content = response.choices[0].message.content
+            self.response_received.emit(response_content)
+            return response_content
         except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
             self.logger.error(f"Error generating response: {str(e)}")
-            return f"An error occurred: {str(e)}"
+            self.error_occurred.emit(error_message)
+            return error_message
 
     def summarize_transcript(self, transcript, model=None):
         prompt = f"Summarize the following transcript:\n\n{transcript}"

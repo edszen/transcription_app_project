@@ -1,7 +1,35 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit, QPushButton, QListWidget, QInputDialog
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
+                            QPushButton, QListWidget, QInputDialog, QScrollArea, QComboBox)
 from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtGui import QColor, QPalette
 import json
 import os
+
+class MessageWidget(QWidget):
+    def __init__(self, sender, message, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout()
+        self.message = QTextEdit()
+        self.message.setReadOnly(True)
+        self.message.setPlainText(message)
+        self.message.setStyleSheet("""
+            QTextEdit {
+                background-color: #f0f0f0;
+                border-radius: 10px;
+                padding: 10px;
+                font-size: 14px;
+            }
+        """)
+        
+        if sender == "You":
+            self.message.setStyleSheet(self.message.styleSheet() + "QTextEdit { background-color: #e1ffc7; }")
+            layout.setAlignment(Qt.AlignRight)
+        else:
+            self.message.setStyleSheet(self.message.styleSheet() + "QTextEdit { background-color: #ffffff; }")
+            layout.setAlignment(Qt.AlignLeft)
+        
+        layout.addWidget(self.message)
+        self.setLayout(layout)
 
 class ChatWidget(QWidget):
     new_question = pyqtSignal(str)
@@ -17,21 +45,17 @@ class ChatWidget(QWidget):
         layout = QVBoxLayout()
 
         # Chat history
-        self.chat_history = QTextEdit()
-        self.chat_history.setReadOnly(True)
-        self.chat_history.setStyleSheet("""
-            QTextEdit {
-                font-family: Arial, sans-serif;
-                font-size: 12px;
-                line-height: 1.6;
-            }
-        """)
+        self.chat_history = QScrollArea()
+        self.chat_history.setWidgetResizable(True)
+        self.chat_content = QWidget()
+        self.chat_layout = QVBoxLayout(self.chat_content)
+        self.chat_history.setWidget(self.chat_content)
         layout.addWidget(self.chat_history)
 
         # Input area
         input_layout = QHBoxLayout()
-        self.input_field = QLineEdit()
-        self.input_field.returnPressed.connect(self.send_question)
+        self.input_field = QTextEdit()
+        self.input_field.setMaximumHeight(100)
         self.send_button = QPushButton("Send")
         self.send_button.clicked.connect(self.send_question)
         input_layout.addWidget(self.input_field)
@@ -48,10 +72,9 @@ class ChatWidget(QWidget):
         chat_management_layout.addWidget(self.new_chat_button)
         layout.addLayout(chat_management_layout)
 
-        # Saved chats
-        self.saved_chats = QListWidget()
-        self.saved_chats.setMaximumHeight(100)  # Limit the height of the saved chats list
-        self.saved_chats.itemClicked.connect(self.load_chat)
+        # Saved chats dropdown
+        self.saved_chats = QComboBox()
+        self.saved_chats.currentTextChanged.connect(self.load_chat)
         layout.addWidget(self.saved_chats)
 
         # Rename chat button
@@ -62,7 +85,7 @@ class ChatWidget(QWidget):
         self.setLayout(layout)
 
     def send_question(self):
-        question = self.input_field.text().strip()
+        question = self.input_field.toPlainText().strip()
         if question:
             self.add_message("You", question)
             self.input_field.clear()
@@ -75,13 +98,19 @@ class ChatWidget(QWidget):
         if self.current_chat_id is None:
             self.new_chat()
         
-        self.chat_history.append(f"<p><b>{sender}:</b> {message}</p>")
+        message_widget = MessageWidget(sender, message)
+        self.chat_layout.addWidget(message_widget)
+        self.chat_history.verticalScrollBar().setValue(
+            self.chat_history.verticalScrollBar().maximum()
+        )
+        
         self.chats[self.current_chat_id]['messages'].append({"sender": sender, "message": message})
         self.save_chats()
 
     def clear_chat(self):
-        self.chat_history.clear()
-        if self.current_chat_id:
+        for i in reversed(range(self.chat_layout.count())): 
+            self.chat_layout.itemAt(i).widget().setParent(None)
+        if self.current_chat_id and self.current_chat_id in self.chats:
             self.chats[self.current_chat_id]['messages'] = []
             self.save_chats()
 
@@ -90,23 +119,32 @@ class ChatWidget(QWidget):
         self.chats[chat_id] = {"name": chat_id, "messages": []}
         self.current_chat_id = chat_id
         self.saved_chats.addItem(chat_id)
+        self.saved_chats.setCurrentText(chat_id)
         self.clear_chat()
         self.save_chats()
 
     def rename_chat(self):
-        if self.current_chat_id:
+        if self.current_chat_id and self.current_chat_id in self.chats:
             new_name, ok = QInputDialog.getText(self, "Rename Chat", "Enter new name:", text=self.chats[self.current_chat_id]['name'])
             if ok and new_name:
-                self.chats[self.current_chat_id]['name'] = new_name
-                self.saved_chats.currentItem().setText(new_name)
+                old_id = self.current_chat_id
+                self.chats[old_id]['name'] = new_name
+                new_id = new_name
+                self.chats[new_id] = self.chats.pop(old_id)
+                self.current_chat_id = new_id
+                index = self.saved_chats.findText(old_id)
+                if index >= 0:
+                    self.saved_chats.setItemText(index, new_name)
                 self.save_chats()
 
-    def load_chat(self, item):
-        chat_id = item.text()
-        self.current_chat_id = chat_id
-        self.chat_history.clear()
-        for message in self.chats[chat_id]['messages']:
-            self.chat_history.append(f"<p><b>{message['sender']}:</b> {message['message']}</p>")
+    def load_chat(self, chat_name):
+        for chat_id, chat_data in self.chats.items():
+            if chat_data['name'] == chat_name:
+                self.current_chat_id = chat_id
+                self.clear_chat()
+                for message in chat_data['messages']:
+                    self.add_message(message['sender'], message['message'])
+                break
 
     def save_chats(self):
         with open('chats.json', 'w') as f:
