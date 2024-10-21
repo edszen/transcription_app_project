@@ -42,6 +42,24 @@ class TranscriptionWidget(QWidget):
         layout.addLayout(save_layout)
         
         self.setLayout(layout)
+        
+    def update_theme(self, theme):
+        if theme == "default":
+            self.setStyleSheet("""
+                QTextEdit {
+                    background-color: white;
+                    color: #333333;
+                    border: 1px solid #b0b0b0;
+                }
+            """)
+        elif theme == "dark_midnight":
+            self.setStyleSheet("""
+                QTextEdit {
+                    background-color: #2d2d44;
+                    color: #ffffff;
+                    border: 1px solid #3d3d5c;
+                }
+            """)
 
     def upload_and_transcribe(self):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a *.ogg *.mp4);;All Files (*)')

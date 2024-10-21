@@ -90,6 +90,33 @@ class ChatWidget(QWidget):
         layout.addWidget(self.save_chat_button)
 
         self.setLayout(layout)
+        
+    def update_theme(self, theme):
+        if theme == "default":
+            self.setStyleSheet("""
+                QTextEdit, QLineEdit {
+                    background-color: white;
+                    color: #333333;
+                    border: 1px solid #b0b0b0;
+                }
+                QPushButton {
+                    background-color: #e0e0e0;
+                    border: 1px solid #b0b0b0;
+                }
+            """)
+        elif theme == "dark_midnight":
+            self.setStyleSheet("""
+                QTextEdit, QLineEdit {
+                    background-color: #2d2d44;
+                    color: #ffffff;
+                    border: 1px solid #3d3d5c;
+                }
+                QPushButton {
+                    background-color: #3d3d5c;
+                    color: #ffffff;
+                    border: 1px solid #4d4d6c;
+                }
+            """)
 
     def send_question(self):
         question = self.input_field.toPlainText().strip()

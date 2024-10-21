@@ -9,21 +9,38 @@ class HelpDialog(QDialog):
         layout = QVBoxLayout()
         
         help_text = """
-        <h2>Audio Transcription App Help</h2>
-        <h3>Transcribing Audio</h3>
+        <h2>GatherScribe Help</h2>
+        <h3>Getting Started</h3>
         <ol>
             <li>Click "Upload and Transcribe Audio"</li>
             <li>Select an audio file (.mp3, .wav, or .m4a)</li>
             <li>Wait for transcription to complete</li>
         </ol>
-        <h3>Using Speaker Diarization</h3>
+
+        <h3>Speaker Diarization</h3>
         <ol>
             <li>Click "Settings"</li>
             <li>Enter your Hugging Face API key</li>
             <li>Enable "Use Speaker Diarization"</li>
             <li>Click "Save Settings"</li>
         </ol>
-        <p>For more information, please refer to the README file.</p>
+
+        <h3>Chat Integration</h3>
+        <ol>
+            <li>Enter your OpenAI API key in Settings</li>
+            <li>Select your preferred model</li>
+            <li>Use the chat panel to interact with your transcript</li>
+        </ol>
+
+        <h3>Keyboard Shortcuts</h3>
+        <table>
+            <tr><td><b>Ctrl+N:</b></td><td>New Session</td></tr>
+            <tr><td><b>Ctrl+O:</b></td><td>Open Session</td></tr>
+            <tr><td><b>Ctrl+S:</b></td><td>Save Session</td></tr>
+            <tr><td><b>Ctrl+Q:</b></td><td>Quit Application</td></tr>
+        </table>
+
+        <p>For more detailed information, please refer to the README file.</p>
         """
         
         help_browser = QTextBrowser()

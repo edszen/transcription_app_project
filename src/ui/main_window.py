@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QMainWindow, QAction, QHBoxLayout, QVBoxLayout, QWidget,
                             QPushButton, QStackedWidget, QLabel, QFrame, QToolButton, QMessageBox)
-from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QSettings
 from PyQt5.QtGui import QIcon, QFont
 from src.ui.chat.transcription_widget import TranscriptionWidget
 from src.ui.chat.chat_widget import ChatWidget
@@ -13,14 +13,48 @@ from src.ui.sidebar.sidebar_menu import SidebarMenu
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        # Initialize QSettings
+        self.settings = QSettings("SZ Apps", "GatherScribe")
         self.transcription_app = TranscriptionApp()
         self.file_ops = FileOperations(self)
         self.init_ui()
+        self.apply_theme()
 
     def init_ui(self):
         self.setWindowTitle('GatherScribe')
         self.setGeometry(100, 100, 1200, 800)
         main_layout = QHBoxLayout()
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #f5f5f5;
+            }
+            QWidget {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            }
+            QPushButton {
+                background-color: #4a4a4a;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #5a5a5a;
+            }
+            QTextEdit, QLineEdit {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 8px;
+            }
+            QComboBox {
+                background-color: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 6px;
+            }
+        """)
 
         # Create and add SidebarMenu
         self.sidebar = SidebarMenu()
@@ -90,13 +124,7 @@ class MainWindow(QMainWindow):
     def open_settings(self):
         dialog = SettingsDialog(self)
         if dialog.exec_():
-            # Handle settings update
-            # You may need to update the following settings:
-            # - Hugging Face API Key
-            # - OpenAI API key
-            # - Enable diarization
-            # - App Theme (Normal/Grey, Dark/Midnight theme)
-            pass
+            self.apply_theme()
 
     def close_application(self):
         if self.check_unsaved_changes():
@@ -116,3 +144,56 @@ class MainWindow(QMainWindow):
             elif reply == QMessageBox.Cancel:
                 return False
         return True
+
+    def apply_theme(self):
+        theme = self.settings.value("app_theme", "Default").lower().replace('/', '_')
+        if theme == "default":
+            self.setStyleSheet("""
+                QMainWindow, QWidget {
+                    background-color: #f0f0f0;
+                    color: #333333;
+                }
+                QPushButton {
+                    background-color: #e0e0e0;
+                    border: 1px solid #b0b0b0;
+                    padding: 5px;
+                    border-radius: 3px;
+                }
+                QPushButton:hover {
+                    background-color: #d0d0d0;
+                }
+                QLineEdit, QTextEdit {
+                    background-color: white;
+                    border: 1px solid #b0b0b0;
+                    padding: 3px;
+                }
+            """)
+        elif theme == "dark_midnight":
+            self.setStyleSheet("""
+                QMainWindow, QWidget {
+                    background-color: #1e1e2e;
+                    color: #ffffff;
+                }
+                QPushButton {
+                    background-color: #2d2d44;
+                    border: 1px solid #3d3d5c;
+                    padding: 5px;
+                    border-radius: 3px;
+                    color: #ffffff;
+                }
+                QPushButton:hover {
+                    background-color: #3d3d5c;
+                }
+                QLineEdit, QTextEdit {
+                    background-color: #2d2d44;
+                    border: 1px solid #3d3d5c;
+                    padding: 3px;
+                    color: #ffffff;
+                }
+            """)
+        
+        # Update sidebar theme
+        self.sidebar.update_theme(theme)
+        
+        # Update other widgets' themes as needed
+        self.transcription_app.update_theme(theme)

@@ -49,6 +49,16 @@ class SettingsDialog(QDialog):
         self.model_combo.setCurrentText(current_model)
         model_layout.addWidget(self.model_combo)
         layout.addLayout(model_layout)
+        
+        # Appearance Group
+        appearance_layout = QHBoxLayout()
+        appearance_layout.addWidget(QLabel("Theme:"))
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["Default", "Dark/Midnight"])
+        current_theme = self.settings.value("app_theme", "Default")
+        self.theme_combo.setCurrentText(current_theme)
+        appearance_layout.addWidget(self.theme_combo)
+        layout.addLayout(appearance_layout) 
 
         # Save button
         save_button = QPushButton("Save Settings")
@@ -76,5 +86,11 @@ class SettingsDialog(QDialog):
         # Save selected OpenAI model
         selected_model = self.model_combo.currentText()
         self.settings.setValue("openai_model", selected_model)
+        
+        # Save theme setting
+        self.settings.setValue("app_theme", self.theme_combo.currentText())
 
         self.accept()
+        
+    def get_theme(self):
+        return self.theme_combo.currentText().lower().replace('/', '_')

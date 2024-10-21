@@ -93,6 +93,56 @@ class TranscriptionApp(QWidget):
         self.settings_button.clicked.connect(self.open_settings)
         self.help_button.clicked.connect(self.show_help)
         
+    def update_theme(self, theme):
+        if theme == "default":
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: #f0f0f0;
+                    color: #333333;
+                }
+                QPushButton {
+                    background-color: #e0e0e0;
+                    border: 1px solid #b0b0b0;
+                    padding: 5px;
+                    border-radius: 3px;
+                }
+                QPushButton:hover {
+                    background-color: #d0d0d0;
+                }
+                QLineEdit, QTextEdit {
+                    background-color: white;
+                    border: 1px solid #b0b0b0;
+                    padding: 3px;
+                }
+            """)
+        elif theme == "dark_midnight":
+            self.setStyleSheet("""
+                QWidget {
+                    background-color: #1e1e2e;
+                    color: #ffffff;
+                }
+                QPushButton {
+                    background-color: #2d2d44;
+                    border: 1px solid #3d3d5c;
+                    padding: 5px;
+                    border-radius: 3px;
+                    color: #ffffff;
+                }
+                QPushButton:hover {
+                    background-color: #3d3d5c;
+                }
+                QLineEdit, QTextEdit {
+                    background-color: #2d2d44;
+                    border: 1px solid #3d3d5c;
+                    padding: 3px;
+                    color: #ffffff;
+                }
+            """)
+        
+        # Update theme for child widgets
+        self.transcription_widget.update_theme(theme)
+        self.chat_widget.update_theme(theme)
+        
     def setup_connections(self):
         self.chatgpt.response_received.connect(self.chat_widget.add_response)
         self.chatgpt.error_occurred.connect(self.chat_widget.add_response)
