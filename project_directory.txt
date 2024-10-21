@@ -1,0 +1,75 @@
+.
+├── LICENSE
+├── README.md
+├── get-pip.py
+├── project_directory.txt
+├── requirements.txt
+├── setup.py
+├── src
+│   ├── __init__.py
+│   ├── api
+│   │   ├── __init__.py
+│   │   ├── openai_chat.py
+│   │   ├── pyannote_api.py
+│   │   └── whisperx_api.py
+│   ├── assets
+│   │   └── icons
+│   │       ├── close.png
+│   │       ├── edit.png
+│   │       ├── help.png
+│   │       ├── info.png
+│   │       ├── menu-collapse.png
+│   │       ├── menu-expand.png
+│   │       ├── menu.png
+│   │       ├── session.png
+│   │       ├── settings.png
+│   │       └── view.png
+│   ├── chats.json
+│   ├── config.py
+│   ├── core
+│   │   ├── __init__.py
+│   │   ├── alignment.py
+│   │   ├── diarization.py
+│   │   ├── linguistic_processing.py
+│   │   ├── speaker_embedding.py
+│   │   ├── transcribe.py
+│   │   └── vad.py
+│   ├── create_test_audio.py
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── run.py
+│   ├── ui
+│   │   ├── __init__.py
+│   │   ├── chat
+│   │   │   ├── chat_widget.py
+│   │   │   └── transcription_widget.py
+│   │   ├── help_dialog.py
+│   │   ├── main_ui.py
+│   │   ├── main_window.py
+│   │   ├── settings.py
+│   │   └── sidebar
+│   │       ├── __init__.py
+│   │       └── sidebar_menu.py
+│   └── utils
+│       ├── __init__.py
+│       ├── audio_processing.py
+│       ├── encryption.key
+│       ├── encryption.py
+│       └── file_operations.py
+├── test_audio.wav
+└── tests
+    ├── __init__.py
+    ├── test_alignment.py
+    ├── test_audio_processing.py
+    ├── test_chatgpt_integration.py
+    ├── test_diarization.py
+    ├── test_files
+    │   ├── sample.wav
+    │   └── test_audio.wav
+    ├── test_main_ui.py
+    ├── test_settings.py
+    ├── test_speaker_embedding.py
+    ├── test_test.py
+    └── test_transcribe.py
+
+12 directories, 61 files

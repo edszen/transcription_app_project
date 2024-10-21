@@ -22,6 +22,8 @@ class TranscriptionApp(QWidget):
         #self.encryption_utils = EncryptionUtils()
         self.setup_logging()
         self.chatgpt = ChatGPTIntegration()
+        self.transcription_widget = TranscriptionWidget(self.settings)
+        self.chat_widget = ChatWidget()
         self.init_ui()
         self.setup_connections()
         #self.raw_text = "" 
@@ -41,9 +43,27 @@ class TranscriptionApp(QWidget):
         self.settings_button = QPushButton('Settings')
         self.help_button = QPushButton('Help')
         
+        for button in [self.upload_button, self.settings_button, self.help_button]:
+            button.setStyleSheet("""
+                QPushButton {
+                    background-color: #4a4a4a;
+                    color: white;
+                    border: none;
+                    padding: 8px;
+                    margin: 3px;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    max-width: 200px;
+                }
+                QPushButton:hover {
+                    background-color: #5a5a5a;
+                }
+            """)
+        
         menu_layout.addWidget(self.upload_button)
         menu_layout.addWidget(self.settings_button)
         menu_layout.addWidget(self.help_button)
+        menu_layout.addStretch()
         
         main_layout.addLayout(menu_layout)
         
@@ -54,19 +74,19 @@ class TranscriptionApp(QWidget):
         splitter = QSplitter()
         
         # Left side (Transcription)
-        self.transcription_widget = TranscriptionWidget(self.settings)
-        
-        # Right side (Chat)
-        self.chat_widget = ChatWidget()
-        
+        #self.transcription_widget = TranscriptionWidget(self.settings)
         splitter.addWidget(self.transcription_widget)
+        # Right side (Chat)
+        #self.chat_widget = ChatWidget()
         splitter.addWidget(self.chat_widget)
         
         main_layout.addWidget(splitter)
         
-        self.setLayout(main_layout)
+        #self.setLayout(main_layout)
         self.setWindowTitle('GatherScribe')
-        self.setGeometry(100, 100, 1200, 800)
+        #self.setGeometry(100, 100, 1200, 800)
+        
+        self.setLayout(main_layout)
         
         # Connect buttons
         self.upload_button.clicked.connect(self.transcription_widget.upload_and_transcribe)
@@ -93,6 +113,6 @@ class TranscriptionApp(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = TranscriptionApp()
-    ex.show()
+    transcription_app = TranscriptionApp()
+    transcription_app.show()
     sys.exit(app.exec_())

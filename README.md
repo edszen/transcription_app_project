@@ -18,6 +18,8 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
 - VAD is implemented with Pyannote.audio, falling back to energy-based VAD if needed.
 - Improved error handling for diarization failures, with informative feedback to the user.
 - The application continues to provide a transcript even if diarization fails for some parts of the audio.
+- The user interface now features a sleek sidebar for improved navigation and functionality
+- Session management allows users to create, open, and save transcription sessions
 
 ## Recent Changes
 - Refactored the codebase for better modularity:
@@ -26,6 +28,13 @@ This is an audio transcription application for **MacOS** and **Windows**. It use
   - Reorganized UI-related code in `src/ui/` directory.
 - Improved chunking system for handling longer audio files.
 - Enhanced integration of diarization with the chunking system.
+
+## Recent UI Improvements
+
+- Implemented a modern sidebar for easy navigation
+- Added session management features (New Session, Open Session, Save Session)
+- Improved overall layout and styling for better user experience
+- Integrated Settings and Help sections for easier configuration and support
 
 ## How to Install Dependencies
 
@@ -97,9 +106,6 @@ To use Pyannote VAD, you need to set up a Hugging Face API key:
     - Show percentage next to the progress bar.
     - Maybe add the 3 dots to indicate that the transcription is still in progress in the text area. e.g. "Transcribing audio file... Please wait..." with the 3 dots at the end counting up to 3 and then resetting to 0.
 
-12. **Add a button to download the transcript**:
-    - Add a button to download the transcript as a text file.
-
 13. **Add settings menu**:
     - Implement a settings menu for configuration options (e.g., Whisper model selection, API key setup).
     - Add options to edit speaker names, keywords, and formatting preferences.
@@ -157,13 +163,24 @@ Run the application:
 python run.py
 ```
 
-## Troubleshooting
+**Troubleshooting**
+If you encounter issues:
 
-If you encounter any issues:
+Verify you have the latest version of the app.
+Check your Hugging Face API key in the settings.
+Ensure you've accepted the necessary model licenses on Hugging Face.
+Note that if Pyannote VAD fails, the app will use energy-based VAD as a fallback.
 
-1. Ensure you have the latest version of the app.
-2. Check that your Hugging Face API key is entered correctly in the settings.
-3. Verify that you have accepted the necessary model licenses on Hugging Face.
-4. If Pyannote VAD fails, the application will automatically fall back to energy-based VAD.
+For further assistance, please refer to the in-app error messages or contact support.
 
-For further assistance, please refer to the error messages in the application or contact support.
+## Contributing
+
+We welcome contributions! Please see our Contributing Guidelines for more details.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Privacy Policy
+
+GatherScribe prioritizes user privacy. All audio processing is done locally on your machine. We do not collect or store any user data or transcribed content. For more details, please see our full Privacy Policy.

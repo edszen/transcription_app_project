@@ -4,6 +4,7 @@ from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QColor, QPalette
 import json
 import os
+from src.utils.file_operations import FileOperations
 
 class MessageWidget(QWidget):
     def __init__(self, sender, message, parent=None):
@@ -38,6 +39,7 @@ class ChatWidget(QWidget):
         super().__init__(parent)
         self.chats = {}
         self.current_chat_id = None
+        self.file_ops = FileOperations()
         self.init_ui()
         self.load_chats()
 
@@ -81,6 +83,11 @@ class ChatWidget(QWidget):
         self.rename_chat_button = QPushButton("Rename Chat")
         self.rename_chat_button.clicked.connect(self.rename_chat)
         layout.addWidget(self.rename_chat_button)
+        
+        #Save chat button
+        self.save_chat_button = QPushButton("Save Chat")
+        self.save_chat_button.clicked.connect(self.save_chat)
+        layout.addWidget(self.save_chat_button)
 
         self.setLayout(layout)
 
@@ -149,6 +156,11 @@ class ChatWidget(QWidget):
     def save_chats(self):
         with open('chats.json', 'w') as f:
             json.dump(self.chats, f)
+            
+    def save_chat(self):
+        if self.current_chat_id and self.current_chat_id in self.chats:
+            self.file_ops.save_session(self.get_transcript(), self.chats[self.current_chat_id]['messages'])
+
 
     def load_chats(self):
         if os.path.exists('chats.json'):

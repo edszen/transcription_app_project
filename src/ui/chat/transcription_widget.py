@@ -1,13 +1,15 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTextEdit, 
-                             QProgressBar, QHBoxLayout,QFileDialog, QMessageBox)
+                             QProgressBar, QHBoxLayout,QFileDialog, QMessageBox, QComboBox)
 from PyQt5.QtCore import pyqtSlot, QSettings, QTimer
 from src.core.transcribe import Transcriber
+from src.utils.file_operations import FileOperations
 
 class TranscriptionWidget(QWidget):
     def __init__(self, settings):
         super().__init__()
         self.settings = settings
         self.transcriber = None
+        self.file_ops = FileOperations()
         self.init_ui()
         self.dot_count = 0
         self.transcribing_timer = QTimer()
@@ -31,6 +33,13 @@ class TranscriptionWidget(QWidget):
         self.text_area = QTextEdit()
         self.text_area.setReadOnly(True)
         layout.addWidget(self.text_area)
+        
+        # Save button and format selection
+        save_layout = QHBoxLayout()
+        self.save_button = QPushButton('Save Transcription')
+        self.save_button.clicked.connect(self.save_transcript)
+        save_layout.addWidget(self.save_button)
+        layout.addLayout(save_layout)
         
         self.setLayout(layout)
 
@@ -95,6 +104,10 @@ class TranscriptionWidget(QWidget):
         self.dot_count = (self.dot_count + 1) % 4
         dots = "." * self.dot_count
         self.text_area.setText(f"Transcribing{dots}")
+        
+    def save_transcript(self):
+        transcript = self.text_area.toPlainText()
+        self.file_ops.save_transcript(transcript, self)
         
     @pyqtSlot(str)
     def show_error(self, error_message):
