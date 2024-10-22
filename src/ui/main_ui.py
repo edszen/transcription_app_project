@@ -1,7 +1,11 @@
+## New main_ui.py to work with sidebar_menu and main_window.py
+
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QHBoxLayout,
-                             QSplitter)
-from PyQt5.QtCore import QSettings
+                             QSplitter, QStyle, QStyleOption, QTextEdit, QFileDialog, QMessageBox, QComboBox,
+                             QDialogButtonBox, QCheckBox, QProgressBar, QLineEdit, QLabel)
+from PyQt5.QtCore import QSettings, Qt, pyqtSlot, QObject
+from PyQt5.QtGui import QPainter
 from src.ui.settings import SettingsDialog
 from src.ui.help_dialog import HelpDialog
 from utils.encryption import EncryptionUtils
@@ -36,29 +40,29 @@ class TranscriptionApp(QWidget):
 
     def init_ui(self):
         main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for better integration
         
         # Menu buttons
         menu_layout = QHBoxLayout()
+        menu_layout.setContentsMargins(10, 10, 10, 10)
+        menu_layout.setSpacing(8)
+        
         self.upload_button = QPushButton('Upload and Transcribe Audio')
         self.settings_button = QPushButton('Settings')
         self.help_button = QPushButton('Help')
         
+        # Use native button styling
+        button_style = """
+            QPushButton {
+                min-height: 24px;
+                padding: 4px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+            }
+        """
+        
         for button in [self.upload_button, self.settings_button, self.help_button]:
-            button.setStyleSheet("""
-                QPushButton {
-                    background-color: #4a4a4a;
-                    color: white;
-                    border: none;
-                    padding: 8px;
-                    margin: 3px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    max-width: 200px;
-                }
-                QPushButton:hover {
-                    background-color: #5a5a5a;
-                }
-            """)
+            button.setStyleSheet(button_style)
         
         menu_layout.addWidget(self.upload_button)
         menu_layout.addWidget(self.settings_button)
@@ -72,6 +76,15 @@ class TranscriptionApp(QWidget):
         
         # Create a splitter for resizable panels
         splitter = QSplitter()
+        splitter.setHandleWidth(1)  # Thinner splitter handle
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #e0e0e0;
+            }
+            QSplitter::handle:hover {
+                background-color: #d0d0d0;
+            }
+        """)
         
         # Left side (Transcription)
         #self.transcription_widget = TranscriptionWidget(self.settings)
@@ -83,10 +96,9 @@ class TranscriptionApp(QWidget):
         main_layout.addWidget(splitter)
         
         #self.setLayout(main_layout)
+        self.setLayout(main_layout)
         self.setWindowTitle('GatherScribe')
         #self.setGeometry(100, 100, 1200, 800)
-        
-        self.setLayout(main_layout)
         
         # Connect buttons
         self.upload_button.clicked.connect(self.transcription_widget.upload_and_transcribe)
@@ -97,45 +109,77 @@ class TranscriptionApp(QWidget):
         if theme == "default":
             self.setStyleSheet("""
                 QWidget {
-                    background-color: #f0f0f0;
+                    background-color: #ffffff;
                     color: #333333;
                 }
                 QPushButton {
-                    background-color: #e0e0e0;
-                    border: 1px solid #b0b0b0;
-                    padding: 5px;
-                    border-radius: 3px;
+                    background-color: #f5f5f5;
+                    border: 1px solid #e0e0e0;
+                    color: #333333;
                 }
                 QPushButton:hover {
-                    background-color: #d0d0d0;
+                    background-color: #e9e9e9;
+                }
+                QPushButton:pressed {
+                    background-color: #d9d9d9;
                 }
                 QLineEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #b0b0b0;
-                    padding: 3px;
+                    background-color: #ffffff;
+                    border: 1px solid #e0e0e0;
+                    padding: 4px;
+                }
+                QComboBox {
+                    background-color: #ffffff;
+                    border: 1px solid #e0e0e0;
+                    padding: 4px;
+                    min-height: 24px;
+                }
+                QComboBox::drop-down {
+                    border: none;
+                }
+                QComboBox::down-arrow {
+                    image: url(:/down-arrow);
+                    width: 12px;
+                    height: 12px;
                 }
             """)
-        elif theme == "dark_midnight":
+        else:  # dark_midnight
             self.setStyleSheet("""
                 QWidget {
-                    background-color: #1e1e2e;
-                    color: #ffffff;
+                    background-color: #1a1b26;
+                    color: #c0caf5;
                 }
                 QPushButton {
-                    background-color: #2d2d44;
-                    border: 1px solid #3d3d5c;
-                    padding: 5px;
-                    border-radius: 3px;
-                    color: #ffffff;
+                    background-color: #24283b;
+                    border: 1px solid #414868;
+                    color: #c0caf5;
                 }
                 QPushButton:hover {
-                    background-color: #3d3d5c;
+                    background-color: #2f354d;
+                }
+                QPushButton:pressed {
+                    background-color: #3b4261;
                 }
                 QLineEdit, QTextEdit {
-                    background-color: #2d2d44;
-                    border: 1px solid #3d3d5c;
-                    padding: 3px;
-                    color: #ffffff;
+                    background-color: #1f2335;
+                    border: 1px solid #414868;
+                    color: #c0caf5;
+                    padding: 4px;
+                }
+                QComboBox {
+                    background-color: #1f2335;
+                    border: 1px solid #414868;
+                    color: #c0caf5;
+                    padding: 4px;
+                    min-height: 24px;
+                }
+                QComboBox::drop-down {
+                    border: none;
+                }
+                QComboBox::down-arrow {
+                    image: url(:/down-arrow-light);
+                    width: 12px;
+                    height: 12px;
                 }
             """)
         
@@ -160,6 +204,13 @@ class TranscriptionApp(QWidget):
     def ask_chatgpt(self, question):
         transcript = self.transcription_widget.get_transcript()
         self.chatgpt.answer_question(transcript, question)
+        
+    def paintEvent(self, event):
+        # Enable stylesheet for custom widgets
+        opt = QStyleOption()
+        opt.initFrom(self)
+        p = QPainter(self)
+        self.style().drawPrimitive(QStyle.PE_Widget, opt, p, self)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
