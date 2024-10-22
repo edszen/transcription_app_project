@@ -9,10 +9,12 @@ from src.ui.main_ui import TranscriptionApp
 from src.ui.settings import SettingsDialog
 from src.ui.help_dialog import HelpDialog
 from src.ui.sidebar.sidebar_menu import SidebarMenu
+from src.ui.styles.theme_styles import ThemeStyles
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.theme_styles = ThemeStyles()
         # Initialize QSettings
         self.settings = QSettings("SZ Apps", "GatherScribe")
         self.transcription_app = TranscriptionApp()
@@ -147,53 +149,6 @@ class MainWindow(QMainWindow):
 
     def apply_theme(self):
         theme = self.settings.value("app_theme", "Default").lower().replace('/', '_')
-        if theme == "default":
-            self.setStyleSheet("""
-                QMainWindow, QWidget {
-                    background-color: #f0f0f0;
-                    color: #333333;
-                }
-                QPushButton {
-                    background-color: #e0e0e0;
-                    border: 1px solid #b0b0b0;
-                    padding: 5px;
-                    border-radius: 3px;
-                }
-                QPushButton:hover {
-                    background-color: #d0d0d0;
-                }
-                QLineEdit, QTextEdit {
-                    background-color: white;
-                    border: 1px solid #b0b0b0;
-                    padding: 3px;
-                }
-            """)
-        elif theme == "dark_midnight":
-            self.setStyleSheet("""
-                QMainWindow, QWidget {
-                    background-color: #1e1e2e;
-                    color: #ffffff;
-                }
-                QPushButton {
-                    background-color: #2d2d44;
-                    border: 1px solid #3d3d5c;
-                    padding: 5px;
-                    border-radius: 3px;
-                    color: #ffffff;
-                }
-                QPushButton:hover {
-                    background-color: #3d3d5c;
-                }
-                QLineEdit, QTextEdit {
-                    background-color: #2d2d44;
-                    border: 1px solid #3d3d5c;
-                    padding: 3px;
-                    color: #ffffff;
-                }
-            """)
-        
-        # Update sidebar theme
+        self.theme_styles.apply_theme(self, theme)
         self.sidebar.update_theme(theme)
-        
-        # Update other widgets' themes as needed
         self.transcription_app.update_theme(theme)

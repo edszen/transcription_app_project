@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QToolButton,
 from PyQt5.QtCore import Qt, QSize, pyqtSignal, QSettings, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor
 import os
+from src.ui.styles.theme_styles import ThemeStyles
 
 class SidebarMenu(QWidget):
     new_session_triggered = pyqtSignal()
@@ -19,6 +20,7 @@ class SidebarMenu(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("sidebar")  # Important for styling
         self.expanded = False
         self.settings = QSettings("SZ Apps", "GatherScribe")
         # Restore previous state
@@ -89,6 +91,11 @@ class SidebarMenu(QWidget):
             else:  # Windows
                 button.setFont(QFont('Segoe UI', 13))
             
+            # Set icon
+            icon_path = self.get_icon_path(icon)
+            if os.path.exists(icon_path):
+                button.setIcon(QIcon(icon_path))
+            
             button.setText(text if self.expanded else "")
             button.setProperty("text", text)
             button.setProperty("icon_base", icon)
@@ -97,7 +104,6 @@ class SidebarMenu(QWidget):
             
             if has_menu and menu_items:
                 menu = QMenu()
-                # Remove custom styling to keep native look
                 for item_text, callback in menu_items:
                     action = menu.addAction(item_text)
                     action.triggered.connect(callback)
@@ -117,78 +123,25 @@ class SidebarMenu(QWidget):
             layout.addWidget(button)
 
     def update_theme(self, theme):
+        """Update theme and icons"""
         self.current_theme = theme
         
-        # Modern color schemes
-        if theme == "default":
-            colors = {
-                'bg': '#f5f5f5',
-                'sidebar_bg': '#f0f0f0',
-                'text': '#333333',
-                'hover_bg': '#e5e5e5',
-                'active_bg': '#d9d9d9',
-                'menu_bg': '#ffffff',
-                'border': '#e0e0e0'
-            }
-        else:  # dark theme
-            colors = {
-                'bg': '#1a1b26',
-                'sidebar_bg': '#16171f',
-                'text': '#c0caf5',
-                'hover_bg': '#24283b',
-                'active_bg': '#2f354d',
-                'menu_bg': '#1f2335',
-                'border': '#414868'
-            }
-
-        style = f"""
-            QWidget {{
-                background-color: {colors['sidebar_bg']};
-                color: {colors['text']};
-            }}
-            
-            QPushButton {{
-                text-align: left;
-                padding: 8px 16px;
-                border: none;
-                border-radius: 6px;
-                color: {colors['text']};
-                background: transparent;
-                font-size: 13px;
-            }}
-            
-            QPushButton:hover {{
-                background-color: {colors['hover_bg']};
-            }}
-            
-            QPushButton:pressed {{
-                background-color: {colors['active_bg']};
-            }}
-            
-            QMenu {{
-                background-color: {colors['menu_bg']};
-                border: 1px solid {colors['border']};
-                padding: 4px;
-            }}
-            
-            QMenu::item {{
-                padding: 6px 20px;
-            }}
-            
-            QMenu::item:selected {{
-                background-color: {colors['hover_bg']};
-            }}
-            
-            QLabel {{
-                color: {colors['text']};
-                padding: 8px 12px;
-                font-weight: 600;
-                font-size: 14px;
-            }}
-        """
+        # Update icons for all buttons
+        for button in self.buttons:
+            icon_base = button.property("icon_base")
+            if icon_base:
+                icon_path = self.get_icon_path(icon_base)
+                if os.path.exists(icon_path):
+                    button.setIcon(QIcon(icon_path))
         
-        self.setStyleSheet(style)
-        self.update_icons()
+        # Update toggle button icon
+        toggle_icon = "menu-collapse" if self.expanded else "menu-expand"
+        toggle_icon_path = self.get_icon_path(toggle_icon)
+        if os.path.exists(toggle_icon_path):
+            self.toggle_button.setIcon(QIcon(toggle_icon_path))
+        
+        # Apply theme styles
+        ThemeStyles.apply_theme(self, theme)
 
     def update_icons(self):
         # Update icons based on current theme
@@ -206,18 +159,18 @@ class SidebarMenu(QWidget):
 
     def toggle_sidebar(self):
         target_width = 220 if not self.expanded else 64
-        
+    
         self.animation = QPropertyAnimation(self, b"minimumWidth")
         self.animation.setDuration(150)
         self.animation.setStartValue(self.width())
         self.animation.setEndValue(target_width)
         self.animation.setEasingCurve(QEasingCurve.OutQuad)
-        self.animation.finished.connect(self.update_button_states)  # Update states after animation
+        self.animation.finished.connect(self.update_button_states)
         self.animation.start()
         
         self.expanded = not self.expanded
         self.settings.setValue("sidebar_expanded", self.expanded)
-        self.update_icons()
+        self.update_theme(self.current_theme)  # Use update_theme instead of update_icons
 
     def update_button_states(self):
         self.title_label.setVisible(self.expanded)
@@ -227,7 +180,9 @@ class SidebarMenu(QWidget):
                 button.setText(text if self.expanded else "")
                 button.setToolTip("" if self.expanded else text)  # Show tooltips when collapsed
 
-    def get_icon(self, icon_name):
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                               'assets', 'icons', icon_name)
-        return QIcon(icon_path)
+    def get_icon_path(self, icon_name):
+        """Get the appropriate icon path based on current theme"""
+        theme_suffix = "-dark" if self.current_theme == "dark_midnight" else ""
+        icon_filename = f"{icon_name}{theme_suffix}.png"
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                        'assets', 'icons', icon_filename)
