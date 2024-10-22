@@ -28,6 +28,9 @@ class SidebarMenu(QWidget):
         self.current_theme = "default"
         self.buttons = []
         self.init_ui()
+        # Force initial state
+        self.setFixedWidth(64)  # Start collapsed
+        self.update_button_states()
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -129,19 +132,17 @@ class SidebarMenu(QWidget):
         """Update theme and icons"""
         self.current_theme = theme
         
-        # Update icons for all buttons
+        # Force icon updates
         for button in self.buttons:
             icon_base = button.property("icon_base")
             if icon_base:
                 icon_path = self.get_icon_path(icon_base)
-                if os.path.exists(icon_path):
-                    button.setIcon(QIcon(icon_path))
+                button.setIcon(QIcon(icon_path))
         
         # Update toggle button icon
         toggle_icon = "menu-collapse" if self.expanded else "menu-expand"
         toggle_icon_path = self.get_icon_path(toggle_icon)
-        if os.path.exists(toggle_icon_path):
-            self.toggle_button.setIcon(QIcon(toggle_icon_path))
+        self.toggle_button.setIcon(QIcon(toggle_icon_path))
         
         # Apply theme styles
         ThemeStyles.apply_theme(self, theme)
@@ -184,17 +185,23 @@ class SidebarMenu(QWidget):
         """Update button states based on sidebar expansion"""
         self.title_label.setVisible(self.expanded)
         for button in self.buttons:
-            text = button.property("text")
-            if text:
-                button.setText(text if self.expanded else "")
-                if not self.expanded:
-                    button.setToolTip(text)
-                else:
-                    button.setToolTip("")  # Show tooltips when collapsed
+            if not self.expanded:
+                button.setText("")  # Ensure text is completely empty when collapsed
+                button.setToolTip(button.property("text"))
+            else:
+                button.setText(button.property("text"))
+                button.setToolTip("")  # Show tooltips when collapsed
 
     def get_icon_path(self, icon_name):
         """Get the appropriate icon path based on current theme"""
-        theme_suffix = "-dark" if self.current_theme == "dark_midnight" else ""
+        theme_suffix = "_dark" if self.current_theme == "dark_midnight" else ""
         icon_filename = f"{icon_name}{theme_suffix}.png"
-        return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                        'assets', 'icons', icon_filename)
+        base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                               'assets', 'icons')
+        icon_path = os.path.join(base_path, icon_filename)
+        
+        # Verify icon exists, otherwise use default
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(base_path, f"{icon_name}.png")
+        
+        return icon_path

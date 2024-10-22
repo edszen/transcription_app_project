@@ -148,7 +148,8 @@ class MainWindow(QMainWindow):
         return True
 
     def apply_theme(self):
-        theme = self.settings.value("app_theme", "Default").lower().replace('/', '_')
+        """Apply theme throughout the application"""
+        theme = self.settings.value("app_theme", "default").lower().replace('/', '_')
         self.theme_styles.apply_theme(self, theme)
         self.sidebar.update_theme(theme)
         self.transcription_app.update_theme(theme)

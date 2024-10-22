@@ -51,6 +51,7 @@ class ThemeStyles:
                 border-radius: 6px;
                 padding: 8px 12px;
                 text-align: left;
+                margin: 2px 4px;
             }}
             
             QPushButton:hover {{
@@ -62,28 +63,10 @@ class ThemeStyles:
                 border: none;
                 border-radius: 6px;
                 padding: 4px;
+                margin: 2px 4px;
             }}
             
             QToolButton:hover {{
-                background-color: {colors['hover_bg']};
-            }}
-            
-            /* Menu styling */
-            QMenu {{
-                background-color: {colors['sidebar_bg']};
-                border: 1px solid {colors['border']};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-            
-            QMenu::item {{
-                color: {colors['text']};
-                padding: 6px 24px;
-                border-radius: 4px;
-                margin: 2px;
-            }}
-            
-            QMenu::item:selected {{
                 background-color: {colors['hover_bg']};
             }}
         """
