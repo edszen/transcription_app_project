@@ -149,7 +149,11 @@ class MainWindow(QMainWindow):
 
     def apply_theme(self):
         """Apply theme throughout the application"""
-        theme = self.settings.value("app_theme", "default").lower().replace('/', '_')
+        theme = self.settings.value("app_theme", "default").lower()
+        if theme == "dark/midnight":  # Convert the theme name to match our internal naming
+            theme = "dark_midnight"
+        
+        # Apply theme to all components
         self.theme_styles.apply_theme(self, theme)
         self.sidebar.update_theme(theme)
         self.transcription_app.update_theme(theme)

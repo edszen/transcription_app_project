@@ -4,30 +4,25 @@ class ThemeStyles:
     @staticmethod
     def get_theme_colors(theme="default"):
         """Get color palette for specified theme"""
-        if theme == "default":
+        if theme == "dark_midnight":  # Explicit check for dark theme
+            return {
+                'sidebar_bg': '#16161e',  # Even darker sidebar background
+                'main_bg': '#1a1b26',     # Main app background
+                'text': '#c0caf5',        # Text color
+                'hover_bg': '#24283b',    # Hover state
+                'border': '#414868',      # Borders
+                'button_bg': '#7aa2f7',   # Buttons
+                'button_hover': '#89b4fa', # Button hover
+                'accent': '#bb9af7',      # Accent color
+            }
+        else:  # default theme
             return {
                 'sidebar_bg': '#f8f9fa',
                 'main_bg': '#ffffff',
                 'text': '#333333',
                 'hover_bg': '#f0f0f0',
                 'border': '#e0e0e0',
-                'button_bg': '#4a4a4a',
-                'button_hover': '#5a5a5a',
             }
-        else:  # Tokyo Night-inspired dark theme
-            return {
-                'sidebar_bg': '#1a1b26',  # Darker sidebar background
-                'main_bg': '#24283b',     # Main app background
-                'text': '#c0caf5',        # Text color
-                'hover_bg': '#414868',    # Hover state
-                'border': '#565f89',      # Borders
-                'button_bg': '#7aa2f7',   # Buttons
-                'button_hover': '#89b4fa', # Button hover
-                'accent': '#bb9af7',      # Accent color
-                'warning': '#ff9e64',     # Warnings/important actions
-                'success': '#9ece6a',     # Success states
-            }
-
     @staticmethod
     def get_sidebar_styles(colors):
         """Get styles specific to sidebar"""

@@ -132,34 +132,22 @@ class SidebarMenu(QWidget):
         """Update theme and icons"""
         self.current_theme = theme
         
-        # Force icon updates
+        # Update all button icons
         for button in self.buttons:
             icon_base = button.property("icon_base")
             if icon_base:
                 icon_path = self.get_icon_path(icon_base)
-                button.setIcon(QIcon(icon_path))
+                if os.path.exists(icon_path):
+                    button.setIcon(QIcon(icon_path))
         
         # Update toggle button icon
         toggle_icon = "menu-collapse" if self.expanded else "menu-expand"
         toggle_icon_path = self.get_icon_path(toggle_icon)
-        self.toggle_button.setIcon(QIcon(toggle_icon_path))
+        if os.path.exists(toggle_icon_path):
+            self.toggle_button.setIcon(QIcon(toggle_icon_path))
         
         # Apply theme styles
         ThemeStyles.apply_theme(self, theme)
-
-    def update_icons(self):
-        # Update icons based on current theme
-        suffix = "_dark" if self.current_theme == "dark_midnight" else ""
-        
-        for button in self.buttons:
-            icon_base = button.property("icon_base")
-            if icon_base:
-                icon_path = f"{icon_base}{suffix}.png"
-                button.setIcon(self.get_icon(icon_path))
-        
-        # Update toggle button icon
-        toggle_icon = "menu-collapse" if self.expanded else "menu-expand"
-        self.toggle_button.setIcon(self.get_icon(f"{toggle_icon}{suffix}.png"))
 
     def toggle_sidebar(self):
         """Toggle sidebar expansion with animation"""
@@ -194,14 +182,14 @@ class SidebarMenu(QWidget):
 
     def get_icon_path(self, icon_name):
         """Get the appropriate icon path based on current theme"""
-        theme_suffix = "_dark" if self.current_theme == "dark_midnight" else ""
-        icon_filename = f"{icon_name}{theme_suffix}.png"
         base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                               'assets', 'icons')
-        icon_path = os.path.join(base_path, icon_filename)
+                            'assets', 'icons')
         
-        # Verify icon exists, otherwise use default
-        if not os.path.exists(icon_path):
-            icon_path = os.path.join(base_path, f"{icon_name}.png")
+        # First try to get themed icon
+        if self.current_theme == "dark_midnight":
+            dark_path = os.path.join(base_path, f"{icon_name}_dark.png")  # Changed from -dark to _dark
+            if os.path.exists(dark_path):
+                return dark_path
         
-        return icon_path
+        # Fallback to default icon
+        return os.path.join(base_path, f"{icon_name}.png")
