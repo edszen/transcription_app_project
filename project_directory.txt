@@ -15,15 +15,22 @@
 │   ├── assets
 │   │   └── icons
 │   │       ├── close.png
+│   │       ├── close_dark.png
 │   │       ├── edit.png
+│   │       ├── edit_dark.png
 │   │       ├── help.png
+│   │       ├── help_dark.png
 │   │       ├── info.png
-│   │       ├── menu-collapse.png
-│   │       ├── menu-expand.png
-│   │       ├── menu.png
+│   │       ├── menu_collapse.png
+│   │       ├── menu_collapse_dark.png
+│   │       ├── menu_expand.png
+│   │       ├── menu_expand_dark.png
 │   │       ├── session.png
+│   │       ├── session_dark.png
 │   │       ├── settings.png
-│   │       └── view.png
+│   │       ├── settings_dark.png
+│   │       ├── view.png
+│   │       └── view_dark.png
 │   ├── chats.json
 │   ├── config.py
 │   ├── core
@@ -47,9 +54,11 @@
 │   │   ├── main_ui.py
 │   │   ├── main_window.py
 │   │   ├── settings.py
-│   │   └── sidebar
-│   │       ├── __init__.py
-│   │       └── sidebar_menu.py
+│   │   ├── sidebar
+│   │   │   ├── __init__.py
+│   │   │   └── sidebar_menu.py
+│   │   └── styles
+│   │       └── theme_styles.py
 │   └── utils
 │       ├── __init__.py
 │       ├── audio_processing.py
@@ -72,4 +81,4 @@
     ├── test_test.py
     └── test_transcribe.py
 
-12 directories, 61 files
+13 directories, 69 files
