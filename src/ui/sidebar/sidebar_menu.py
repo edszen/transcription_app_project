@@ -82,6 +82,7 @@ class SidebarMenu(QWidget):
         self.update_theme(self.current_theme)
         
     def create_menu_section(self, layout, items):
+        """Create menu section with proper styling and states"""
         for text, icon, has_menu, menu_items in items:
             button = QPushButton()
             
@@ -96,11 +97,16 @@ class SidebarMenu(QWidget):
             if os.path.exists(icon_path):
                 button.setIcon(QIcon(icon_path))
             
-            button.setText(text if self.expanded else "")
+            # Only set text if expanded
+            button.setText("" if not self.expanded else text)
             button.setProperty("text", text)
             button.setProperty("icon_base", icon)
             button.setIconSize(QSize(22, 22))
             button.setFixedHeight(36)
+            
+            # Set tooltip only when collapsed
+            if not self.expanded:
+                button.setToolTip(text)
             
             if has_menu and menu_items:
                 menu = QMenu()
@@ -115,9 +121,6 @@ class SidebarMenu(QWidget):
                     button.clicked.connect(self.settings_triggered.emit)
                 elif text == "Close":
                     button.clicked.connect(self.close_app_triggered.emit)
-            
-            if not self.expanded:
-                button.setToolTip(text)
             
             self.buttons.append(button)
             layout.addWidget(button)
@@ -158,27 +161,36 @@ class SidebarMenu(QWidget):
         self.toggle_button.setIcon(self.get_icon(f"{toggle_icon}{suffix}.png"))
 
     def toggle_sidebar(self):
+        """Toggle sidebar expansion with animation"""
         target_width = 220 if not self.expanded else 64
-    
+        
+        # Update button states immediately to prevent text flash
+        self.expanded = not self.expanded
+        self.update_button_states()
+        
+        # Animate the width change
         self.animation = QPropertyAnimation(self, b"minimumWidth")
         self.animation.setDuration(150)
         self.animation.setStartValue(self.width())
         self.animation.setEndValue(target_width)
         self.animation.setEasingCurve(QEasingCurve.OutQuad)
-        self.animation.finished.connect(self.update_button_states)
         self.animation.start()
         
-        self.expanded = not self.expanded
+        # Save state
         self.settings.setValue("sidebar_expanded", self.expanded)
         self.update_theme(self.current_theme)  # Use update_theme instead of update_icons
 
     def update_button_states(self):
+        """Update button states based on sidebar expansion"""
         self.title_label.setVisible(self.expanded)
         for button in self.buttons:
             text = button.property("text")
-            if text:  # Check if text property exists
+            if text:
                 button.setText(text if self.expanded else "")
-                button.setToolTip("" if self.expanded else text)  # Show tooltips when collapsed
+                if not self.expanded:
+                    button.setToolTip(text)
+                else:
+                    button.setToolTip("")  # Show tooltips when collapsed
 
     def get_icon_path(self, icon_name):
         """Get the appropriate icon path based on current theme"""

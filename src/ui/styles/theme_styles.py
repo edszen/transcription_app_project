@@ -11,14 +11,21 @@ class ThemeStyles:
                 'text': '#333333',
                 'hover_bg': '#f0f0f0',
                 'border': '#e0e0e0',
+                'button_bg': '#4a4a4a',
+                'button_hover': '#5a5a5a',
             }
-        else:  # dark theme
+        else:  # Tokyo Night-inspired dark theme
             return {
-                'sidebar_bg': '#16161e',
-                'main_bg': '#1a1b26',
-                'text': '#c0caf5',
-                'hover_bg': '#24283b',
-                'border': '#414868',
+                'sidebar_bg': '#1a1b26',  # Darker sidebar background
+                'main_bg': '#24283b',     # Main app background
+                'text': '#c0caf5',        # Text color
+                'hover_bg': '#414868',    # Hover state
+                'border': '#565f89',      # Borders
+                'button_bg': '#7aa2f7',   # Buttons
+                'button_hover': '#89b4fa', # Button hover
+                'accent': '#bb9af7',      # Accent color
+                'warning': '#ff9e64',     # Warnings/important actions
+                'success': '#9ece6a',     # Success states
             }
 
     @staticmethod
@@ -47,6 +54,36 @@ class ThemeStyles:
             }}
             
             QPushButton:hover {{
+                background-color: {colors['hover_bg']};
+            }}
+            
+            QToolButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {colors['hover_bg']};
+            }}
+            
+            /* Menu styling */
+            QMenu {{
+                background-color: {colors['sidebar_bg']};
+                border: 1px solid {colors['border']};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            
+            QMenu::item {{
+                color: {colors['text']};
+                padding: 6px 24px;
+                border-radius: 4px;
+                margin: 2px;
+            }}
+            
+            QMenu::item:selected {{
                 background-color: {colors['hover_bg']};
             }}
         """
