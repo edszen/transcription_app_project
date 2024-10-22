@@ -24,7 +24,7 @@ class SidebarMenu(QWidget):
         self.expanded = False
         self.settings = QSettings("SZ Apps", "GatherScribe")
         # Restore previous state
-        self.expanded = self.settings.value("sidebar_expanded", False, type=bool)
+        #self.expanded = self.settings.value("sidebar_expanded", False, type=bool)
         self.current_theme = "default"
         self.buttons = []
         self.init_ui()
@@ -130,24 +130,103 @@ class SidebarMenu(QWidget):
 
     def update_theme(self, theme):
         """Update theme and icons"""
+        print(f"Updating theme to: {theme}")  # Debug print
         self.current_theme = theme
         
-        # Update all button icons
+        # Force update all icons
         for button in self.buttons:
             icon_base = button.property("icon_base")
             if icon_base:
                 icon_path = self.get_icon_path(icon_base)
-                if os.path.exists(icon_path):
+                print(f"Loading icon: {icon_path}")  # Debug print
+                if icon_path:
                     button.setIcon(QIcon(icon_path))
         
         # Update toggle button icon
         toggle_icon = "menu-collapse" if self.expanded else "menu-expand"
         toggle_icon_path = self.get_icon_path(toggle_icon)
-        if os.path.exists(toggle_icon_path):
+        if toggle_icon_path:
             self.toggle_button.setIcon(QIcon(toggle_icon_path))
         
         # Apply theme styles
-        ThemeStyles.apply_theme(self, theme)
+        self.apply_theme_styles()
+        
+    def apply_theme_styles(self):
+        """Apply theme styles to the sidebar"""
+        if self.current_theme == "dark_midnight":
+            self.setStyleSheet("""
+                QWidget#sidebar {
+                    background-color: #16161e;
+                    border-right: 1px solid #414868;
+                }
+                
+                QLabel {
+                    color: #c0caf5;
+                }
+                
+                QPushButton {
+                    background-color: transparent;
+                    color: #c0caf5;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    text-align: left;
+                    margin: 2px 4px;
+                }
+                
+                QPushButton:hover {
+                    background-color: #24283b;
+                }
+                
+                QToolButton {
+                    background-color: transparent;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 4px;
+                    margin: 2px 4px;
+                }
+                
+                QToolButton:hover {
+                    background-color: #24283b;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QWidget#sidebar {
+                    background-color: #f8f9fa;
+                    border-right: 1px solid #e0e0e0;
+                }
+                
+                QLabel {
+                    color: #333333;
+                }
+                
+                QPushButton {
+                    background-color: transparent;
+                    color: #333333;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    text-align: left;
+                    margin: 2px 4px;
+                }
+                
+                QPushButton:hover {
+                    background-color: #f0f0f0;
+                }
+                
+                QToolButton {
+                    background-color: transparent;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 4px;
+                    margin: 2px 4px;
+                }
+                
+                QToolButton:hover {
+                    background-color: #f0f0f0;
+                }
+            """)
 
     def toggle_sidebar(self):
         """Toggle sidebar expansion with animation"""
@@ -183,13 +262,14 @@ class SidebarMenu(QWidget):
     def get_icon_path(self, icon_name):
         """Get the appropriate icon path based on current theme"""
         base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                            'assets', 'icons')
+                               'assets', 'icons')
         
-        # First try to get themed icon
+        # Explicitly check current theme and use appropriate icon
         if self.current_theme == "dark_midnight":
-            dark_path = os.path.join(base_path, f"{icon_name}_dark.png")  # Changed from -dark to _dark
-            if os.path.exists(dark_path):
-                return dark_path
-        
+            dark_icon = os.path.join(base_path, f"{icon_name}_dark.png")
+            if os.path.exists(dark_icon):
+                return dark_icon
+            
         # Fallback to default icon
-        return os.path.join(base_path, f"{icon_name}.png")
+        default_icon = os.path.join(base_path, f"{icon_name}.png")
+        return default_icon if os.path.exists(default_icon) else ""

@@ -92,5 +92,14 @@ class SettingsDialog(QDialog):
 
         self.accept()
         
+    def accept(self):
+        # Other settings...
+        selected_theme = self.theme_combo.currentText()
+        if selected_theme == "Dark/Midnight":
+            self.settings.setValue("app_theme", "dark_midnight")
+        else:
+            self.settings.setValue("app_theme", selected_theme.lower())
+        super().accept()
+        
     def get_theme(self):
         return self.theme_combo.currentText().lower().replace('/', '_')
