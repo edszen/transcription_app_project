@@ -3,11 +3,13 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTextEdit,
 from PyQt5.QtCore import pyqtSlot, QSettings, QTimer
 from src.core.transcribe import Transcriber
 from src.utils.file_operations import FileOperations
+from src.ui.styles.theme_manager import ThemeManager
 
 class TranscriptionWidget(QWidget):
     def __init__(self, settings):
         super().__init__()
         self.settings = settings
+        self.theme_manager = ThemeManager()
         self.transcriber = None
         self.file_ops = FileOperations()
         self.init_ui()
@@ -44,22 +46,59 @@ class TranscriptionWidget(QWidget):
         self.setLayout(layout)
         
     def update_theme(self, theme):
-        if theme == "default":
-            self.setStyleSheet("""
-                QTextEdit {
-                    background-color: white;
-                    color: #333333;
-                    border: 1px solid #b0b0b0;
-                }
-            """)
-        elif theme == "dark_midnight":
-            self.setStyleSheet("""
-                QTextEdit {
-                    background-color: #2d2d44;
-                    color: #ffffff;
-                    border: 1px solid #3d3d5c;
-                }
-            """)
+        colors = self.theme_manager.get_colors(theme)
+        
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {colors['background']};
+                color: {colors['text_primary']};
+            }}
+            
+            QTextEdit {{
+                background-color: {colors['input_bg']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_primary']};
+                border-radius: 6px;
+                padding: 8px;
+                selection-background-color: {colors['accent_primary']};
+                selection-color: #ffffff;
+            }}
+            
+            QPushButton {{
+                background-color: {colors['button_bg']};
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+            }}
+            
+            QPushButton:hover {{
+                background-color: {colors['button_hover']};
+            }}
+            
+            QPushButton:pressed {{
+                background-color: {colors['button_active']};
+            }}
+            
+            QPushButton:disabled {{
+                background-color: {colors['border_primary']};
+                color: {colors['text_muted']};
+            }}
+            
+            QProgressBar {{
+                border: 1px solid {colors['border_primary']};
+                border-radius: 4px;
+                text-align: center;
+                padding: 1px;
+                background-color: {colors['background']};
+            }}
+            
+            QProgressBar::chunk {{
+                background-color: {colors['accent_secondary']};
+                border-radius: 3px;
+            }}
+        """)
 
     def upload_and_transcribe(self):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a *.ogg *.mp4);;All Files (*)')
@@ -98,6 +137,10 @@ class TranscriptionWidget(QWidget):
         self.progress_bar.setVisible(False)
 
     def format_transcript(self, text):
+        colors = self.theme_manager.get_colors(
+            self.settings.value("app_theme", "default").lower()
+        )
+        
         lines = text.split('\n')
         formatted_lines = []
         for line in lines:
@@ -105,7 +148,11 @@ class TranscriptionWidget(QWidget):
             if len(parts) == 2:
                 timestamp, content = parts
                 speaker, speech = content.split(':', 1)
-                formatted_lines.append(f"{timestamp} | <b>{speaker}</b>:{speech}")
+                formatted_lines.append(
+                    f'<span style="color: {colors["accent_primary"]}">{timestamp}</span> | '
+                    f'<span style="color: {colors["accent_secondary"]}"><b>{speaker}</b></span>:'
+                    f'<span style="color: {colors["text_primary"]}">{speech}</span>'
+                )
             else:
                 formatted_lines.append(line)
         return '<br>'.join(formatted_lines)

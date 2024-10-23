@@ -2,44 +2,67 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLine
                             QPushButton, QListWidget, QInputDialog, QScrollArea, QComboBox)
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QColor, QPalette
+from src.ui.styles.theme_manager import ThemeManager
 import json
 import os
 from src.utils.file_operations import FileOperations
 
 class MessageWidget(QWidget):
-    def __init__(self, sender, message, parent=None):
+    def __init__(self, sender, message, theme_manager, parent=None):
         super().__init__(parent)
+        self.theme_manager = theme_manager
+        self.sender = sender  # Store sender for theme application
         layout = QVBoxLayout()
+        layout.setContentsMargins(8, 4, 8, 4)  # Tighter margins
+        
         self.message = QTextEdit()
         self.message.setReadOnly(True)
         self.message.setPlainText(message)
-        self.message.setStyleSheet("""
-            QTextEdit {
-                background-color: #f0f0f0;
-                border-radius: 10px;
-                padding: 10px;
-                font-size: 14px;
-            }
-        """)
+        self.message.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.message.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
-        if sender == "You":
-            self.message.setStyleSheet(self.message.styleSheet() + "QTextEdit { background-color: #e1ffc7; }")
-            layout.setAlignment(Qt.AlignRight)
-        else:
-            self.message.setStyleSheet(self.message.styleSheet() + "QTextEdit { background-color: #ffffff; }")
-            layout.setAlignment(Qt.AlignLeft)
+        # Auto-adjust height based on content
+        doc_height = self.message.document().size().height()
+        self.message.setFixedHeight(min(max(doc_height + 20, 40), 200))
         
         layout.addWidget(self.message)
         self.setLayout(layout)
+        
+        # Apply initial theme
+        self.apply_theme("default")
+        
+    def apply_theme(self, theme):
+        colors = self.theme_manager.get_colors(theme)
+        if self.sender == "You":
+            bg_color = colors['accent_secondary']
+            text_color = '#ffffff'
+            self.setLayoutDirection(Qt.RightToLeft)
+        else:
+            bg_color = colors['input_bg']
+            text_color = colors['text_primary']
+            self.setLayoutDirection(Qt.LeftToRight)
+            
+        self.message.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {bg_color};
+                color: {text_color};
+                border-radius: 10px;
+                padding: 10px;
+                font-size: 14px;
+                border: 1px solid {colors['border_primary']};
+            }}
+        """)
 
 class ChatWidget(QWidget):
     new_question = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.theme_manager = ThemeManager()
         self.chats = {}
         self.current_chat_id = None
         self.file_ops = FileOperations()
+        self.current_theme = "default"  # Track current theme
         self.init_ui()
         self.load_chats()
 
@@ -92,31 +115,77 @@ class ChatWidget(QWidget):
         self.setLayout(layout)
         
     def update_theme(self, theme):
-        if theme == "default":
-            self.setStyleSheet("""
-                QTextEdit, QLineEdit {
-                    background-color: white;
-                    color: #333333;
-                    border: 1px solid #b0b0b0;
-                }
-                QPushButton {
-                    background-color: #e0e0e0;
-                    border: 1px solid #b0b0b0;
-                }
-            """)
-        elif theme == "dark_midnight":
-            self.setStyleSheet("""
-                QTextEdit, QLineEdit {
-                    background-color: #2d2d44;
-                    color: #ffffff;
-                    border: 1px solid #3d3d5c;
-                }
-                QPushButton {
-                    background-color: #3d3d5c;
-                    color: #ffffff;
-                    border: 1px solid #4d4d6c;
-                }
-            """)
+        self.current_theme = theme  # Store current theme
+        colors = self.theme_manager.get_colors(theme)
+        
+        # Update main widget style
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {colors['background']};
+                color: {colors['text_primary']};
+            }}
+            
+            QTextEdit, QLineEdit {{
+                background-color: {colors['input_bg']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_primary']};
+                border-radius: 6px;
+                padding: 8px;
+            }}
+            
+            QPushButton {{
+                background-color: {colors['button_bg']};
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+            }}
+            
+            QPushButton:hover {{
+                background-color: {colors['button_hover']};
+            }}
+            
+            QPushButton:pressed {{
+                background-color: {colors['button_active']};
+            }}
+            
+            QComboBox {{
+                background-color: {colors['input_bg']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_primary']};
+                border-radius: 6px;
+                padding: 6px;
+            }}
+            
+            QScrollArea {{
+                border: none;
+                background-color: transparent;
+            }}
+            
+            QScrollBar:vertical {{
+                background-color: {colors['background']};
+                width: 14px;
+                margin: 0px;
+            }}
+            
+            QScrollBar::handle:vertical {{
+                background-color: {colors['border_primary']};
+                min-height: 30px;
+                border-radius: 7px;
+                margin: 2px;
+            }}
+            
+            QScrollBar::handle:vertical:hover {{
+                background-color: {colors['border_secondary']};
+            }}
+        """)
+        
+        # Update all message widgets
+        for i in range(self.chat_layout.count()):
+            widget = self.chat_layout.itemAt(i).widget()
+            if isinstance(widget, MessageWidget):
+                widget.apply_theme(theme)
 
     def send_question(self):
         question = self.input_field.toPlainText().strip()
@@ -132,13 +201,26 @@ class ChatWidget(QWidget):
         if self.current_chat_id is None:
             self.new_chat()
         
-        message_widget = MessageWidget(sender, message)
+        # Create message widget with theme manager
+        message_widget = MessageWidget(
+            sender=sender,
+            message=message,
+            theme_manager=self.theme_manager,
+            parent=self
+        )
+        
+        # Apply current theme to new message
+        message_widget.apply_theme(self.current_theme)
+        
         self.chat_layout.addWidget(message_widget)
         self.chat_history.verticalScrollBar().setValue(
             self.chat_history.verticalScrollBar().maximum()
         )
         
-        self.chats[self.current_chat_id]['messages'].append({"sender": sender, "message": message})
+        self.chats[self.current_chat_id]['messages'].append({
+            "sender": sender,
+            "message": message
+        })
         self.save_chats()
 
     def clear_chat(self):
@@ -177,7 +259,14 @@ class ChatWidget(QWidget):
                 self.current_chat_id = chat_id
                 self.clear_chat()
                 for message in chat_data['messages']:
-                    self.add_message(message['sender'], message['message'])
+                    message_widget = MessageWidget(
+                        sender=message['sender'],
+                        message=message['message'],
+                        theme_manager=self.theme_manager,
+                        parent=self
+                    )
+                    message_widget.apply_theme(self.current_theme)
+                    self.chat_layout.addWidget(message_widget)
                 break
 
     def save_chats(self):

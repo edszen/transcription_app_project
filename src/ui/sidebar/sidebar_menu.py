@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QToolButton,
 from PyQt5.QtCore import Qt, QSize, pyqtSignal, QSettings, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor
 import os
-from src.ui.styles.theme_styles import ThemeStyles
+from src.ui.styles.theme_manager import ThemeManager
 
 class SidebarMenu(QWidget):
     new_session_triggered = pyqtSignal()
@@ -20,17 +20,22 @@ class SidebarMenu(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("sidebar")  # Important for styling
+        self.setObjectName("sidebar")
+        
+        # Initialize properties
         self.expanded = False
         self.settings = QSettings("SZ Apps", "GatherScribe")
-        # Restore previous state
-        #self.expanded = self.settings.value("sidebar_expanded", False, type=bool)
-        self.current_theme = "default"
+        self.theme_manager = ThemeManager()
+        self.current_theme = self.settings.value("app_theme", "default").lower()
         self.buttons = []
+        
+        # Initialize UI
         self.init_ui()
-        # Force initial state
-        self.setFixedWidth(64)  # Start collapsed
+        self.setFixedWidth(64)
         self.update_button_states()
+        
+        # Apply initial theme
+        self.update_theme(self.current_theme)
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -79,10 +84,16 @@ class SidebarMenu(QWidget):
         ]
         self.create_menu_section(layout, bottom_menu)
         
-        # Set initial width and update state
-        self.setFixedWidth(64 if not self.expanded else 220)
-        self.buttons = []  # Initialize buttons list
-        self.update_theme(self.current_theme)
+    def get_icon_path(self, icon_name):
+        """Get the appropriate icon path based on current theme"""
+        base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                               'assets', 'icons')
+        
+        suffix = "_dark" if self.current_theme == "dark_midnight" else ""
+        icon_filename = f"{icon_name}{suffix}.png"
+        
+        icon_path = os.path.join(base_path, icon_filename)
+        return icon_path if os.path.exists(icon_path) else ""
         
     def create_menu_section(self, layout, items):
         """Create menu section with proper styling and states"""
@@ -128,28 +139,80 @@ class SidebarMenu(QWidget):
             self.buttons.append(button)
             layout.addWidget(button)
 
-    def update_theme(self, theme):
-        """Update theme and icons"""
-        print(f"Updating theme to: {theme}")  # Debug print
-        self.current_theme = theme
+    def update_theme(self, theme_name):
+        """Update sidebar theme"""
+        self.current_theme = theme_name
+        colors = self.theme_manager.get_colors(theme_name)
         
-        # Force update all icons
+        # Apply theme styles
+        self.setStyleSheet(f"""
+            QWidget#sidebar {{
+                background-color: {colors['sidebar_bg']};
+                border-right: 1px solid {colors['border_primary']};
+            }}
+            
+            QLabel {{
+                color: {colors['text_primary']};
+            }}
+            
+            QPushButton {{
+                background-color: transparent;
+                color: {colors['text_primary']};
+                border: none;
+                border-radius: 6px;
+                padding: 8px 12px;
+                text-align: left;
+                margin: 2px 4px;
+            }}
+            
+            QPushButton:hover {{
+                background-color: {colors['sidebar_hover']};
+            }}
+            
+            QToolButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 6px;
+                padding: 4px;
+                margin: 2px 4px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {colors['sidebar_hover']};
+            }}
+            
+            QMenu {{
+                background-color: {colors['background']};
+                color: {colors['text_primary']};
+                border: 1px solid {colors['border_primary']};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            
+            QMenu::item {{
+                padding: 4px 24px;
+                border-radius: 4px;
+            }}
+            
+            QMenu::item:selected {{
+                background-color: {colors['sidebar_hover']};
+            }}
+        """)
+        
+        # Update icons for current theme
         for button in self.buttons:
             icon_base = button.property("icon_base")
             if icon_base:
                 icon_path = self.get_icon_path(icon_base)
-                print(f"Loading icon: {icon_path}")  # Debug print
                 if icon_path:
                     button.setIcon(QIcon(icon_path))
         
         # Update toggle button icon
-        toggle_icon = "menu-collapse" if self.expanded else "menu-expand"
+        toggle_icon = "menu_collapse" if self.expanded else "menu_expand"
         toggle_icon_path = self.get_icon_path(toggle_icon)
         if toggle_icon_path:
             self.toggle_button.setIcon(QIcon(toggle_icon_path))
-        
-        # Apply theme styles
-        self.apply_theme_styles()
+
         
     def apply_theme_styles(self):
         """Apply theme styles to the sidebar"""
@@ -229,25 +292,23 @@ class SidebarMenu(QWidget):
             """)
 
     def toggle_sidebar(self):
-        """Toggle sidebar expansion with animation"""
+        """Toggle sidebar with smooth animation"""
         target_width = 220 if not self.expanded else 64
         
-        # Update button states immediately to prevent text flash
+        # Create animation
+        self.animation = QPropertyAnimation(self, b"minimumWidth")
+        self.animation.setDuration(200)  # Slightly faster animation
+        self.animation.setStartValue(self.width())
+        self.animation.setEndValue(target_width)
+        self.animation.setEasingCurve(QEasingCurve.OutCubic)  # Smoother curve
+        
+        # Update state before animation
         self.expanded = not self.expanded
         self.update_button_states()
         
-        # Animate the width change
-        self.animation = QPropertyAnimation(self, b"minimumWidth")
-        self.animation.setDuration(150)
-        self.animation.setStartValue(self.width())
-        self.animation.setEndValue(target_width)
-        self.animation.setEasingCurve(QEasingCurve.OutQuad)
+        # Start animation
         self.animation.start()
         
-        # Save state
-        self.settings.setValue("sidebar_expanded", self.expanded)
-        self.update_theme(self.current_theme)  # Use update_theme instead of update_icons
-
     def update_button_states(self):
         """Update button states based on sidebar expansion"""
         self.title_label.setVisible(self.expanded)
@@ -258,18 +319,3 @@ class SidebarMenu(QWidget):
             else:
                 button.setText(button.property("text"))
                 button.setToolTip("")  # Show tooltips when collapsed
-
-    def get_icon_path(self, icon_name):
-        """Get the appropriate icon path based on current theme"""
-        base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                               'assets', 'icons')
-        
-        # Explicitly check current theme and use appropriate icon
-        if self.current_theme == "dark_midnight":
-            dark_icon = os.path.join(base_path, f"{icon_name}_dark.png")
-            if os.path.exists(dark_icon):
-                return dark_icon
-            
-        # Fallback to default icon
-        default_icon = os.path.join(base_path, f"{icon_name}.png")
-        return default_icon if os.path.exists(default_icon) else ""

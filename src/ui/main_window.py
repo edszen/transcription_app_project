@@ -9,55 +9,29 @@ from src.ui.main_ui import TranscriptionApp
 from src.ui.settings import SettingsDialog
 from src.ui.help_dialog import HelpDialog
 from src.ui.sidebar.sidebar_menu import SidebarMenu
-from src.ui.styles.theme_styles import ThemeStyles
+from src.ui.styles.theme_manager import ThemeManager
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.theme_styles = ThemeStyles()
+        # Initialize theme manager
+        self.theme_manager = ThemeManager()
         # Initialize QSettings
         self.settings = QSettings("SZ Apps", "GatherScribe")
         self.transcription_app = TranscriptionApp()
         self.file_ops = FileOperations(self)
         self.init_ui()
-        self.apply_theme()
+        
+        # Apply initial theme
+        current_theme = self.settings.value("app_theme", "default").lower()
+        self.theme_manager.apply_theme(self, current_theme)
+        
 
     def init_ui(self):
         self.setWindowTitle('GatherScribe')
         self.setGeometry(100, 100, 1200, 800)
         main_layout = QHBoxLayout()
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #f5f5f5;
-            }
-            QWidget {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            }
-            QPushButton {
-                background-color: #4a4a4a;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background-color: #5a5a5a;
-            }
-            QTextEdit, QLineEdit {
-                background-color: white;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
-                padding: 8px;
-            }
-            QComboBox {
-                background-color: white;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
-                padding: 6px;
-            }
-        """)
-
+        
         # Create and add SidebarMenu
         self.sidebar = SidebarMenu()
         self.connect_sidebar_signals()
@@ -69,7 +43,7 @@ class MainWindow(QMainWindow):
         # Create central widget
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
-        self.setCentralWidget(central_widget)
+        self.setCentralWidget(central_widget)       
         
     def connect_sidebar_signals(self):
         self.sidebar.new_session_triggered.connect(self.new_session)
@@ -150,11 +124,8 @@ class MainWindow(QMainWindow):
     def apply_theme(self):
         """Apply theme throughout the application"""
         theme = self.settings.value("app_theme", "default").lower()
-        if theme in ["dark/midnight", "dark_midnight", "dark"]:
-            theme = "dark_midnight"
-            
-        print(f"Main window applying theme: {theme}")  # Debug print
+        self.theme_manager.apply_theme(self, theme)
         
-        # Apply theme to components
+        # Update child components
         self.sidebar.update_theme(theme)
         self.transcription_app.update_theme(theme)

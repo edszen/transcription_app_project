@@ -14,6 +14,7 @@ import os
 from src.api.openai_chat import ChatGPTIntegration
 from src.ui.chat.chat_widget import ChatWidget
 from src.ui.chat.transcription_widget import TranscriptionWidget
+from src.ui.styles.theme_manager import ThemeManager
 
 # Project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -23,6 +24,7 @@ class TranscriptionApp(QWidget):
         super().__init__()
         self.speaker_names = {}
         self.settings = QSettings("SZ Apps", "GatherScribe")
+        self.theme_manager = ThemeManager()
         #self.encryption_utils = EncryptionUtils()
         self.setup_logging()
         self.chatgpt = ChatGPTIntegration()
@@ -32,7 +34,11 @@ class TranscriptionApp(QWidget):
         self.setup_connections()
         #self.raw_text = "" 
         #self.total_chunks = 0
-        #self.processed_chunks = 0       
+        #self.processed_chunks = 0  
+        
+        # Apply initial theme
+        current_theme = self.settings.value("app_theme", "default").lower()
+        self.update_theme(current_theme)     
 
     def setup_logging(self):
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -106,84 +112,43 @@ class TranscriptionApp(QWidget):
         self.help_button.clicked.connect(self.show_help)
         
     def update_theme(self, theme):
-        if theme == "default":
-            self.setStyleSheet("""
-                QWidget {
-                    background-color: #ffffff;
-                    color: #333333;
-                }
-                QPushButton {
-                    background-color: #f5f5f5;
-                    border: 1px solid #e0e0e0;
-                    color: #333333;
-                }
-                QPushButton:hover {
-                    background-color: #e9e9e9;
-                }
-                QPushButton:pressed {
-                    background-color: #d9d9d9;
-                }
-                QLineEdit, QTextEdit {
-                    background-color: #ffffff;
-                    border: 1px solid #e0e0e0;
-                    padding: 4px;
-                }
-                QComboBox {
-                    background-color: #ffffff;
-                    border: 1px solid #e0e0e0;
-                    padding: 4px;
-                    min-height: 24px;
-                }
-                QComboBox::drop-down {
-                    border: none;
-                }
-                QComboBox::down-arrow {
-                    image: url(:/down-arrow);
-                    width: 12px;
-                    height: 12px;
-                }
-            """)
-        else:  # dark_midnight
-            self.setStyleSheet("""
-                QWidget {
-                    background-color: #1a1b26;
-                    color: #c0caf5;
-                }
-                QPushButton {
-                    background-color: #24283b;
-                    border: 1px solid #414868;
-                    color: #c0caf5;
-                }
-                QPushButton:hover {
-                    background-color: #2f354d;
-                }
-                QPushButton:pressed {
-                    background-color: #3b4261;
-                }
-                QLineEdit, QTextEdit {
-                    background-color: #1f2335;
-                    border: 1px solid #414868;
-                    color: #c0caf5;
-                    padding: 4px;
-                }
-                QComboBox {
-                    background-color: #1f2335;
-                    border: 1px solid #414868;
-                    color: #c0caf5;
-                    padding: 4px;
-                    min-height: 24px;
-                }
-                QComboBox::drop-down {
-                    border: none;
-                }
-                QComboBox::down-arrow {
-                    image: url(:/down-arrow-light);
-                    width: 12px;
-                    height: 12px;
-                }
-            """)
+        colors = self.theme_manager.get_colors(theme)
         
-        # Update theme for child widgets
+        # Update main app style
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {colors['background']};
+                color: {colors['text_primary']};
+            }}
+            
+            QPushButton {{
+                background-color: {colors['button_bg']};
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                min-height: 24px;
+                font-size: 13px;
+            }}
+            
+            QPushButton:hover {{
+                background-color: {colors['button_hover']};
+            }}
+            
+            QPushButton:pressed {{
+                background-color: {colors['button_active']};
+            }}
+            
+            QSplitter::handle {{
+                background-color: {colors['border_primary']};
+            }}
+            
+            QSplitter::handle:hover {{
+                background-color: {colors['border_secondary']};
+            }}
+        """)
+        
+        # Update child widgets
         self.transcription_widget.update_theme(theme)
         self.chat_widget.update_theme(theme)
         
