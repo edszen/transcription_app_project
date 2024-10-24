@@ -167,69 +167,6 @@ class SidebarMenu(QWidget):
     def update_theme(self, theme_name):
         """Update sidebar theme and logo"""
         self.current_theme = theme_name
-        colors = self.theme_manager.get_colors(theme_name)
-        
-        # Apply theme styles with improved button styling
-        self.setStyleSheet(f"""
-            QWidget#sidebar {{
-                background-color: {colors['sidebar_bg']};
-                border-right: 1px solid {colors['border_primary']};
-            }}
-            
-            QLabel {{
-                color: {colors['sidebar_text']};
-                font-weight: 500;
-            }}
-            
-            QPushButton {{
-                background-color: transparent;
-                color: {colors['sidebar_text']};
-                border: none;
-                border-radius: 8px;
-                padding: 8px 16px;
-                text-align: left;
-                margin: 2px 4px;
-                font-weight: 500;
-            }}
-            
-            QPushButton:hover {{
-                background-color: {colors['sidebar_hover']};
-            }}
-            
-            QPushButton:pressed {{
-                background-color: {colors['sidebar_active']};
-            }}
-            
-            QToolButton {{
-                background-color: transparent;
-                border: none;
-                border-radius: 8px;
-                padding: 8px;
-                margin: 2px;
-            }}
-            
-            QToolButton:hover {{
-                background-color: {colors['sidebar_hover']};
-            }}
-            
-            QMenu {{
-                background-color: {colors['sidebar_bg']};
-                color: {colors['sidebar_text']};
-                border: 1px solid {colors['border_primary']};
-                border-radius: 6px;
-                padding: 4px;
-            }}
-            
-            QMenu::item {{
-                padding: 4px 20px;
-                border-radius: 4px;
-            }}
-            
-            QMenu::item:selected {{
-                background-color: {colors['sidebar_hover']};
-            }}
-        """)
-        
         self.update_logo()
         
         # Update button icons

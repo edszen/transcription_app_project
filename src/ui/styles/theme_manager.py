@@ -11,8 +11,8 @@ class ThemeManager(QObject):
         'background_lighter': '#24283b',
         
         ## Sidebar specific - swapped base and hover colors
-        'sidebar_bg': '#4AB8C9',          # Light blue from logo (now main color)
-        'sidebar_hover': '#1f2335',       # Dark background (now hover color)
+        'sidebar_bg': '#1f2335',        # Dark background (now main color)
+        'sidebar_hover': '#4AB8C9',     # Light blue from logo (now hover color)
         'sidebar_active': '#292e42',      # Slightly lighter than hover
         'sidebar_text': '#FFFFFF',        # White text for contrast
         
@@ -55,8 +55,8 @@ class ThemeManager(QObject):
         'background_lighter': '#ffffff',
         
         # Sidebar specific - matched to beige logo
-        'sidebar_bg': '#F5EFE6',          # Beige from logo (now main color)
-        'sidebar_hover': '#e8e9ed',       # Light grey (now hover color)
+        'sidebar_bg': '#e8e9ed',        # Light grey (now main color)
+        'sidebar_hover': '#F5EFE6',     # Beige from logo (now hover color)
         'sidebar_active': '#d8d9dd',      # Slightly darker than hover
         'sidebar_text': '#333333',        # Dark text for contrast
         
