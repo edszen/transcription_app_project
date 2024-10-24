@@ -97,7 +97,8 @@ class SidebarMenu(QWidget):
         
     def create_menu_section(self, layout, items):
         for text, icon, has_menu, menu_items in items:
-            button = QPushButton()
+            button = QPushButton(text)  # Set initial text
+            button.setProperty("text", text)
             
             # Set larger font size
             if os.name == 'posix':
@@ -105,16 +106,17 @@ class SidebarMenu(QWidget):
             else:
                 button.setFont(QFont('Segoe UI', 14))
             
-            # Set icon and store icon base name as property
+            # Set icon
             icon_path = self.get_icon_path(icon)
             if os.path.exists(icon_path):
                 button.setIcon(QIcon(icon_path))
                 button.setIconSize(QSize(32, 32))
             button.setProperty("icon_base", icon)
             
-            # Store text as property and set initial text
-            button.setProperty("text", text)
-            button.setText(text if self.expanded else "")
+            # Clear text if not expanded
+            if not self.expanded:
+                button.setText("")
+                button.setToolTip(text)
             
             button.setFixedHeight(50)
             
@@ -132,9 +134,6 @@ class SidebarMenu(QWidget):
                     button.clicked.connect(self.settings_triggered.emit)
                 elif text == "Close":
                     button.clicked.connect(self.close_app_triggered.emit)
-            
-            if not self.expanded:
-                button.setToolTip(text)
             
             self.buttons.append(button)
             layout.addWidget(button)
@@ -244,26 +243,38 @@ class SidebarMenu(QWidget):
             self.toggle_button.setIcon(QIcon(toggle_icon_path))
         
     def toggle_sidebar(self):
+        print("Toggle sidebar called")  # Debug print
         target_width = 260 if not self.expanded else 80
         
+        # Set the expanded state before updating buttons
+        self.expanded = not self.expanded
+        print(f"Expanded state: {self.expanded}")  # Debug print
+        
+        # Update button states immediately
+        self.update_button_states()
+        
+        # Create and start animation
         self.animation = QPropertyAnimation(self, b"minimumWidth")
         self.animation.setDuration(200)
         self.animation.setStartValue(self.width())
         self.animation.setEndValue(target_width)
         self.animation.setEasingCurve(QEasingCurve.OutCubic)
-        
-        self.expanded = not self.expanded
-        self.update_button_states()
-        self.update_logo()
         self.animation.start()
         
+        # Update logo after animation
+        self.update_logo()
+        
     def update_button_states(self):
-        """Update button states and text visibility"""
+        print("Updating button states")  # Debug print
         for button in self.buttons:
             text = button.property("text")
+            print(f"Button text property: {text}")  # Debug print
+            
             if self.expanded:
                 button.setText(text)
                 button.setToolTip("")
+                print(f"Setting button text to: {text}")  # Debug print
             else:
                 button.setText("")
                 button.setToolTip(text)
+                print(f"Clearing button text")  # Debug print

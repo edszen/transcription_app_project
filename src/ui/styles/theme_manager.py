@@ -5,16 +5,16 @@ class ThemeManager(QObject):
     theme_changed = pyqtSignal(str)
     
     TOKYO_NIGHT = {
-        # Base colors
+        # Base colors - matched to blue logo
         'background': '#1a1b26',
         'background_darker': '#16161e',
         'background_lighter': '#24283b',
         
-        # Sidebar specific
-        'sidebar_bg': '#1f2335',          # Distinct dark blue for sidebar
-        'sidebar_hover': '#292e42',       # Lighter hover state
-        'sidebar_active': '#34384c',      # Even lighter for active state
-        'sidebar_text': '#c0caf5',        # Bright text for contrast
+        # Sidebar specific - matched to blue logo
+        'sidebar_bg': '#4AB8C9',          # Light blue from logo
+        'sidebar_hover': '#3DA6B6',       # Slightly darker blue
+        'sidebar_active': '#358F9D',      # Even darker for active state
+        'sidebar_text': '#FFFFFF',        # White text for contrast
         
         # Text colors
         'text_primary': '#c0caf5',
@@ -54,10 +54,10 @@ class ThemeManager(QObject):
         'background_darker': '#f8f9fa',
         'background_lighter': '#ffffff',
         
-        # Sidebar specific
-        'sidebar_bg': '#e8e9ed',          # Light grey for sidebar
-        'sidebar_hover': '#d8d9dd',       # Darker for hover
-        'sidebar_active': '#c8c9cd',      # Even darker for active
+        # Sidebar specific - matched to beige logo
+        'sidebar_bg': '#F5EFE6',          # Beige from logo
+        'sidebar_hover': '#EBE5DC',       # Slightly darker beige
+        'sidebar_active': '#E1DBD2',      # Even darker for active state
         'sidebar_text': '#333333',        # Dark text for contrast
         
         # Text colors
