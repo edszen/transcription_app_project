@@ -34,8 +34,8 @@ class SidebarMenu(QWidget):
         self.setFixedWidth(80)  # Increased from 64 to accommodate larger icons
         self.update_button_states()
         
-        # Apply initial theme
-        self.update_theme(self.current_theme)
+        # Important: Remove any hardcoded background color
+        self.setAttribute(Qt.WA_StyledBackground, True)
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -167,6 +167,46 @@ class SidebarMenu(QWidget):
     def update_theme(self, theme_name):
         """Update sidebar theme and logo"""
         self.current_theme = theme_name
+        colors = self.theme_manager.get_colors(theme_name)
+        
+        # Apply theme-specific styles
+        self.setStyleSheet(f"""
+            QWidget#sidebar {{
+                background-color: {colors['sidebar_bg']};
+                border: none;
+            }}
+            
+            QPushButton {{
+                background-color: transparent;
+                color: {colors['sidebar_text']};
+                border: none;
+                border-radius: 8px;
+                padding: 8px 16px;
+                text-align: left;
+                margin: 2px 4px;
+                font-size: 14px;
+            }}
+            
+            QPushButton:hover {{
+                background-color: {colors['sidebar_hover']};
+            }}
+            
+            QPushButton:pressed {{
+                background-color: {colors['sidebar_active']};
+            }}
+            
+            QToolButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {colors['sidebar_hover']};
+            }}
+        """)
+        
         self.update_logo()
         
         # Update button icons
