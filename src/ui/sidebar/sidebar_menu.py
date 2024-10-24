@@ -145,24 +145,43 @@ class SidebarMenu(QWidget):
     def update_logo(self):
         """Update logo based on current theme and sidebar state"""
         base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                               'assets', 'icons')
+                            'assets', 'icons')
         
+        # Use SVG logo path
         if self.expanded:
             # Use letters-only logo when expanded
-            logo_file = "logo_letters_only_dark.png" if self.current_theme == "dark_midnight" else "logo_letters_only.png"
+            logo_file = "logo_letters_only_dark.svg" if self.current_theme == "dark_midnight" else "logo_letters_only.svg"
         else:
             # Use icon-only logo when collapsed
-            logo_file = "logo_dark.png" if self.current_theme == "dark_midnight" else "logo.png"
+            logo_file = "logo_dark.svg" if self.current_theme == "dark_midnight" else "logo.svg"
             
         logo_path = os.path.join(base_path, logo_file)
         
         if os.path.exists(logo_path):
-            pixmap = QPixmap(logo_path)
-            # Much larger logo sizes
-            scaled_height = 160 if self.expanded else 120  # Increased sizes
-            scaled_pixmap = pixmap.scaledToHeight(scaled_height, Qt.SmoothTransformation)
-            self.logo_container.setPixmap(scaled_pixmap)
-            self.logo_container.setAlignment(Qt.AlignCenter)
+            # For SVG files, we'll use QSvgWidget
+            if logo_path.endswith('.svg'):
+                if not hasattr(self, 'svg_widget'):
+                    from PyQt5.QtSvg import QSvgWidget
+                    self.svg_widget = QSvgWidget()
+                    # Replace the logo_container with the svg_widget
+                    self.layout().replaceWidget(self.logo_container, self.svg_widget)
+                    self.logo_container.deleteLater()
+                    self.logo_container = self.svg_widget
+                
+                self.svg_widget.load(logo_path)
+                # Set size based on sidebar state
+                if self.expanded:
+                    self.svg_widget.setFixedSize(200, 200)  # Larger size when expanded
+                else:
+                    self.svg_widget.setFixedSize(160, 160)  # Larger size when collapsed
+                
+            else:  # Fallback to PNG if SVG doesn't exist
+                pixmap = QPixmap(logo_path)
+                # Much larger logo sizes
+                scaled_height = 200 if self.expanded else 160  # Increased sizes
+                scaled_pixmap = pixmap.scaledToHeight(scaled_height, Qt.SmoothTransformation)
+                self.logo_container.setPixmap(scaled_pixmap)
+                self.logo_container.setAlignment(Qt.AlignCenter)
 
     def update_theme(self, theme_name):
         """Update sidebar theme and logo"""
