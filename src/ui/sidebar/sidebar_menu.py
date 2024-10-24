@@ -45,14 +45,15 @@ class SidebarMenu(QWidget):
         # Logo container with much larger fixed height
         self.logo_container = QLabel()
         self.logo_container.setAlignment(Qt.AlignCenter)
-        self.logo_container.setFixedHeight(140)  # Much larger height for logo
+        self.logo_container.setFixedHeight(180)  # Increased height
+        self.logo_container.setMinimumWidth(64)  # Minimum width for logo
         layout.addWidget(self.logo_container)
         
         layout.addSpacing(16)  # More space after logo
         
         # Toggle button
         self.toggle_button = QToolButton()
-        self.toggle_button.setIconSize(QSize(28, 28))
+        self.toggle_button.setIconSize(QSize(32, 32))
         self.toggle_button.clicked.connect(self.toggle_sidebar)
         layout.addWidget(self.toggle_button)
         
@@ -104,29 +105,36 @@ class SidebarMenu(QWidget):
             else:
                 button.setFont(QFont('Segoe UI', 14))
             
-            # Set icon
+            # Set icon and store icon base name as property
             icon_path = self.get_icon_path(icon)
             if os.path.exists(icon_path):
                 button.setIcon(QIcon(icon_path))
-                button.setIconSize(QSize(32, 32))  # Larger icons
+                button.setIconSize(QSize(32, 32))
+            button.setProperty("icon_base", icon)
             
-            # Store the text as a property and set it based on expanded state
+            # Store text as property and set initial text
             button.setProperty("text", text)
             button.setText(text if self.expanded else "")
             
-            # Set fixed height and styling
             button.setFixedHeight(50)
-            button.setStyleSheet("""
-                QPushButton {
-                    text-align: left;
-                    padding-left: 15px;
-                }
-            """)
+            
+            if has_menu and menu_items:
+                menu = QMenu()
+                for item_text, callback in menu_items:
+                    action = menu.addAction(item_text)
+                    action.triggered.connect(callback)
+                button.setMenu(menu)
+            else:
+                # Direct button connections
+                if text == "Help":
+                    button.clicked.connect(self.help_triggered.emit)
+                elif text == "Settings":
+                    button.clicked.connect(self.settings_triggered.emit)
+                elif text == "Close":
+                    button.clicked.connect(self.close_app_triggered.emit)
             
             if not self.expanded:
                 button.setToolTip(text)
-            
-            # ... (rest of the button setup remains the same)
             
             self.buttons.append(button)
             layout.addWidget(button)
@@ -148,7 +156,7 @@ class SidebarMenu(QWidget):
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
             # Much larger logo sizes
-            scaled_height = 120 if self.expanded else 80
+            scaled_height = 160 if self.expanded else 120  # Increased sizes
             scaled_pixmap = pixmap.scaledToHeight(scaled_height, Qt.SmoothTransformation)
             self.logo_container.setPixmap(scaled_pixmap)
             self.logo_container.setAlignment(Qt.AlignCenter)
@@ -158,7 +166,7 @@ class SidebarMenu(QWidget):
         self.current_theme = theme_name
         colors = self.theme_manager.get_colors(theme_name)
         
-        # Apply theme styles (keep existing styles)
+        # Apply theme styles with improved button styling
         self.setStyleSheet(f"""
             QWidget#sidebar {{
                 background-color: {colors['sidebar_bg']};
@@ -166,27 +174,62 @@ class SidebarMenu(QWidget):
             }}
             
             QLabel {{
-                color: {colors['text_primary']};
+                color: {colors['sidebar_text']};
                 font-weight: 500;
             }}
             
             QPushButton {{
                 background-color: transparent;
-                color: {colors['text_primary']};
+                color: {colors['sidebar_text']};
                 border: none;
                 border-radius: 8px;
                 padding: 8px 16px;
                 text-align: left;
                 margin: 2px 4px;
+                font-weight: 500;
             }}
             
             QPushButton:hover {{
                 background-color: {colors['sidebar_hover']};
             }}
+            
+            QPushButton:pressed {{
+                background-color: {colors['sidebar_active']};
+            }}
+            
+            QToolButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                margin: 2px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {colors['sidebar_hover']};
+            }}
+            
+            QMenu {{
+                background-color: {colors['sidebar_bg']};
+                color: {colors['sidebar_text']};
+                border: 1px solid {colors['border_primary']};
+                border-radius: 6px;
+                padding: 4px;
+            }}
+            
+            QMenu::item {{
+                padding: 4px 20px;
+                border-radius: 4px;
+            }}
+            
+            QMenu::item:selected {{
+                background-color: {colors['sidebar_hover']};
+            }}
         """)
         
-        # Update icons and logo
         self.update_logo()
+        
+        # Update button icons
         for button in self.buttons:
             icon_base = button.property("icon_base")
             if icon_base:
@@ -194,7 +237,7 @@ class SidebarMenu(QWidget):
                 if icon_path:
                     button.setIcon(QIcon(icon_path))
         
-        # Update toggle button icon
+        # Update toggle button
         toggle_icon = "menu_collapse" if self.expanded else "menu_expand"
         toggle_icon_path = self.get_icon_path(toggle_icon)
         if toggle_icon_path:
