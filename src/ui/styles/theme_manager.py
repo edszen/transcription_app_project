@@ -4,92 +4,96 @@ from PyQt5.QtCore import QObject, pyqtSignal
 class ThemeManager(QObject):
     theme_changed = pyqtSignal(str)
     
+class ThemeManager(QObject):
+    theme_changed = pyqtSignal(str)
+    
+    # Dark theme colors updated to match example
     TOKYO_NIGHT = {
-        # Base colors - matched to blue logo
-        'background': '#1a1b26',
-        'background_darker': '#16161e',
-        'background_lighter': '#24283b',
+        # Base colors
+        'background': '#2D3142',          # Deep blue-gray (Primary background)
+        'background_darker': '#2D3142',    # Same as primary for cards
+        'background_lighter': '#363A4F',   # Content background
         
-        ## Sidebar specific - swapped base and hover colors
-        'sidebar_bg': '#4AB8C9',     # Main sidebar color (blue from logo)
-        'sidebar_hover': '#1f2335',   # Darker color for hover
-        'sidebar_active': '#292e42',  # Slightly lighter than hover
-        'sidebar_text': '#FFFFFF',    # White text for contrast
+        # Sidebar specific
+        'sidebar_bg': '#2D3142',          # Same as primary background
+        'sidebar_hover': '#363A4F',       # Slightly lighter for hover
+        'sidebar_active': '#363A4F',      # Same as hover
+        'sidebar_text': '#FFFFFF',        # White text
         
         # Text colors
-        'text_primary': '#c0caf5',
-        'text_secondary': '#a9b1d6',
-        'text_muted': '#565f89',
+        'text_primary': '#FFFFFF',        # White
+        'text_secondary': '#E0E0E0',      # Light gray for regular text
+        'text_muted': '#CCCCCC',         # Slightly darker gray
         
         # Border colors
-        'border_primary': '#414868',
-        'border_secondary': '#363b54',
+        'border_primary': '#363A4F',
+        'border_secondary': '#2D3142',
         
         # Button colors
-        'button_bg': '#7aa2f7',
-        'button_hover': '#89b4fa',
-        'button_active': '#6b91e4',
+        'button_bg': '#9D91C4',          # Soft purple as primary button color
+        'button_hover': '#aea3d0',       # Lighter purple for hover
+        'button_active': '#8c82b3',      # Darker purple for active
         
         # Component colors
-        'input_bg': '#1f2335',
-        'input_border': '#414868',
-        'input_text': '#c0caf5',
+        'input_bg': '#363A4F',           # Content background color
+        'input_border': '#2D3142',       # Primary background color
+        'input_text': '#E0E0E0',         # Regular text color
         
         # Accent colors
-        'accent_primary': '#bb9af7',    # Purple accent
-        'accent_secondary': '#7aa2f7',   # Blue accent
-        'accent_success': '#9ece6a',     # Green accent
-        'accent_warning': '#e0af68',     # Orange accent
-        'accent_error': '#f7768e',       # Red accent
-        'accent_info': '#7dcfff',        # Light blue accent
+        'accent_primary': '#9D91C4',      # Matching button color
+        'accent_secondary': '#FF9966',    # Softer orange for occasional use
+        'accent_success': '#9ece6a',      # Keeping existing accent colors
+        'accent_warning': '#e0af68',      # for notifications and status
+        'accent_error': '#f7768e',        # indicators
+        'accent_info': '#7dcfff',
         
         # Selection colors
-        'selection_bg': '#bb9af7',
-        'selection_text': '#ffffff',
+        'selection_bg': '#FF7733',
+        'selection_text': '#FFFFFF',
     }
     
     DEFAULT_LIGHT = {
         # Base colors
-        'background': '#ffffff',
-        'background_darker': '#f8f9fa',
-        'background_lighter': '#ffffff',
+        'background': '#F8F9FA',          # Soft white (Primary background)
+        'background_darker': '#F8F9FA',    # Same as primary for cards
+        'background_lighter': '#FFFFFF',   # Pure white for content
         
-        # Sidebar specific - matched to beige logo
-        'sidebar_bg': '#F5EFE6',     # Main sidebar color (beige from logo)
-        'sidebar_hover': '#e8e9ed',   # Slightly darker for hover
-        'sidebar_active': '#d8d9dd',  # Even darker for active state
-        'sidebar_text': '#333333',    # Dark text for contrast
+        # Sidebar specific
+        'sidebar_bg': '#2D3142',          # Dark blue-gray for logo area
+        'sidebar_hover': '#363A4F',       # Slightly lighter for hover
+        'sidebar_active': '#363A4F',      # Same as hover
+        'sidebar_text': '#FFFFFF',        # White text
         
         # Text colors
-        'text_primary': '#333333',
-        'text_secondary': '#4a4a4a',
-        'text_muted': '#6b7280',
+        'text_primary': '#2D3142',        # Dark blue-gray
+        'text_secondary': '#4F5569',      # Regular text color
+        'text_muted': '#6b7280',         # Muted text
         
         # Border colors
-        'border_primary': '#e5e7eb',
-        'border_secondary': '#f3f4f6',
+        'border_primary': '#E9ECEF',
+        'border_secondary': '#F8F9FA',
         
         # Button colors
-        'button_bg': '#826f8b',
-        'button_hover': '#695f73',
-        'button_active': '#574d5f',
+        'button_bg': '#2D3142',          # Dark blue-gray matching sidebar
+        'button_hover': '#363A4F',       # Slightly lighter for hover
+        'button_active': '#252836',      # Slightly darker for active
         
         # Component colors
-        'input_bg': '#ffffff',
-        'input_border': '#e5e7eb',
-        'input_text': '#333333',
+        'input_bg': '#FFFFFF',           # Pure white
+        'input_border': '#E9ECEF',       # Light border
+        'input_text': '#2D3142',         # Dark blue-gray text
         
         # Accent colors
-        'accent_primary': '#826f8b',    # Purple accent
-        'accent_secondary': '#695f73',   # Grey accent
-        'accent_success': '#22c55e',     # Green accent
-        'accent_warning': '#f59e0b',     # Orange accent
-        'accent_error': '#ef4444',       # Red accent
-        'accent_info': '#3b82f6',        # Blue accent
+        'accent_primary': '#2D3142',      # Matching button color
+        'accent_secondary': '#FF7733',    # Keeping orange as secondary accent
+        'accent_success': '#22c55e',      # Keeping existing accent colors
+        'accent_warning': '#f59e0b',      # for notifications and status
+        'accent_error': '#ef4444',        # indicators
+        'accent_info': '#3b82f6',
         
         # Selection colors
-        'selection_bg': '#826f8b',
-        'selection_text': '#ffffff',
+        'selection_bg': '#FF7733',
+        'selection_text': '#FFFFFF',
     }
 
     def __init__(self):
