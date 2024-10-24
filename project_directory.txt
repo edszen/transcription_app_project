@@ -21,6 +21,10 @@
 │   │       ├── help.png
 │   │       ├── help_dark.png
 │   │       ├── info.png
+│   │       ├── logo.png
+│   │       ├── logo_dark.png
+│   │       ├── logo_letters_only.png
+│   │       ├── logo_letters_only_dark.png
 │   │       ├── menu_collapse.png
 │   │       ├── menu_collapse_dark.png
 │   │       ├── menu_expand.png
@@ -58,6 +62,8 @@
 │   │   │   ├── __init__.py
 │   │   │   └── sidebar_menu.py
 │   │   └── styles
+│   │       ├── theme_manager.py
+│   │       ├── theme_preview.py
 │   │       └── theme_styles.py
 │   └── utils
 │       ├── __init__.py
@@ -81,4 +87,4 @@
     ├── test_test.py
     └── test_transcribe.py
 
-13 directories, 69 files
+13 directories, 75 files

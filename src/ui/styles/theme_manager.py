@@ -2,8 +2,6 @@ from PyQt5.QtGui import QPalette, QColor
 from PyQt5.QtCore import QObject, pyqtSignal
 
 class ThemeManager(QObject):
-    """Centralized theme management system for GatherScribe"""
-    
     theme_changed = pyqtSignal(str)
     
     TOKYO_NIGHT = {
@@ -12,12 +10,11 @@ class ThemeManager(QObject):
         'background_darker': '#16161e',
         'background_lighter': '#24283b',
         
-        # Accent colors
-        'accent_primary': '#bb9af7',    # Purple accent
-        'accent_secondary': '#7aa2f7',   # Blue accent
-        'accent_success': '#9ece6a',     # Green accent
-        'accent_warning': '#e0af68',     # Orange accent
-        'accent_error': '#f7768e',       # Red accent
+        # Sidebar specific
+        'sidebar_bg': '#1f2335',          # Distinct dark blue for sidebar
+        'sidebar_hover': '#292e42',       # Lighter hover state
+        'sidebar_active': '#34384c',      # Even lighter for active state
+        'sidebar_text': '#c0caf5',        # Bright text for contrast
         
         # Text colors
         'text_primary': '#c0caf5',
@@ -28,13 +25,27 @@ class ThemeManager(QObject):
         'border_primary': '#414868',
         'border_secondary': '#363b54',
         
-        # Component specific
-        'sidebar_bg': '#13141c',          # Darker than background
-        'sidebar_hover': '#1c1d28',
-        'input_bg': '#1f2335',
+        # Button colors
         'button_bg': '#7aa2f7',
         'button_hover': '#89b4fa',
         'button_active': '#6b91e4',
+        
+        # Component colors
+        'input_bg': '#1f2335',
+        'input_border': '#414868',
+        'input_text': '#c0caf5',
+        
+        # Accent colors
+        'accent_primary': '#bb9af7',    # Purple accent
+        'accent_secondary': '#7aa2f7',   # Blue accent
+        'accent_success': '#9ece6a',     # Green accent
+        'accent_warning': '#e0af68',     # Orange accent
+        'accent_error': '#f7768e',       # Red accent
+        'accent_info': '#7dcfff',        # Light blue accent
+        
+        # Selection colors
+        'selection_bg': '#bb9af7',
+        'selection_text': '#ffffff',
     }
     
     DEFAULT_LIGHT = {
@@ -43,128 +54,120 @@ class ThemeManager(QObject):
         'background_darker': '#f8f9fa',
         'background_lighter': '#ffffff',
         
-        # Accent colors
-        'accent_primary': '#7c3aed',    # Purple accent
-        'accent_secondary': '#3b82f6',   # Blue accent
-        'accent_success': '#22c55e',     # Green accent
-        'accent_warning': '#f59e0b',     # Orange accent
-        'accent_error': '#ef4444',       # Red accent
+        # Sidebar specific
+        'sidebar_bg': '#e8e9ed',          # Light grey for sidebar
+        'sidebar_hover': '#d8d9dd',       # Darker for hover
+        'sidebar_active': '#c8c9cd',      # Even darker for active
+        'sidebar_text': '#333333',        # Dark text for contrast
         
         # Text colors
-        'text_primary': '#111827',
-        'text_secondary': '#374151',
+        'text_primary': '#333333',
+        'text_secondary': '#4a4a4a',
         'text_muted': '#6b7280',
         
         # Border colors
         'border_primary': '#e5e7eb',
         'border_secondary': '#f3f4f6',
         
-        # Component specific
-        'sidebar_bg': '#f1f5f9',
-        'sidebar_hover': '#e2e8f0',
+        # Button colors
+        'button_bg': '#826f8b',
+        'button_hover': '#695f73',
+        'button_active': '#574d5f',
+        
+        # Component colors
         'input_bg': '#ffffff',
-        'button_bg': '#7c3aed',
-        'button_hover': '#6d28d9',
-        'button_active': '#5b21b6',
+        'input_border': '#e5e7eb',
+        'input_text': '#333333',
+        
+        # Accent colors
+        'accent_primary': '#826f8b',    # Purple accent
+        'accent_secondary': '#695f73',   # Grey accent
+        'accent_success': '#22c55e',     # Green accent
+        'accent_warning': '#f59e0b',     # Orange accent
+        'accent_error': '#ef4444',       # Red accent
+        'accent_info': '#3b82f6',        # Blue accent
+        
+        # Selection colors
+        'selection_bg': '#826f8b',
+        'selection_text': '#ffffff',
     }
 
     def __init__(self):
         super().__init__()
         self.current_theme = "default"
-        self._transitions_enabled = True
 
     def get_colors(self, theme_name="default"):
         """Get color palette for specified theme"""
         return self.TOKYO_NIGHT if theme_name == "dark_midnight" else self.DEFAULT_LIGHT
 
-    def get_stylesheet(self, theme_name="default", widget_type=None):
-        """Get stylesheet for specified theme and widget type"""
+    def get_stylesheet(self, theme_name="default"):
+        """Get stylesheet for specified theme"""
         colors = self.get_colors(theme_name)
         
-        base_styles = f"""
-            /* Base styles */
-            QWidget {{
-                background-color: {colors['background']};
-                color: {colors['text_primary']};
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        return f"""
+            QWidget#sidebar {{
+                background-color: {colors['sidebar_bg']};
+                border-right: 1px solid {colors['sidebar_hover']};
             }}
             
-            /* Main window styles */
-            QMainWindow {{
-                background-color: {colors['background']};
-            }}
-            
-            /* Button styles */
             QPushButton {{
-                background-color: {colors['button_bg']};
-                color: {'#ffffff' if theme_name == 'dark_midnight' else '#ffffff'};
+                background-color: transparent;
+                color: {colors['sidebar_text']};
                 border: none;
-                border-radius: 6px;
+                border-radius: 8px;
                 padding: 8px 16px;
-                font-size: 13px;
-                font-weight: 500;
+                text-align: left;
+                margin: 2px 4px;
+                font-size: 14px;
             }}
             
             QPushButton:hover {{
-                background-color: {colors['button_hover']};
+                background-color: {colors['sidebar_hover']};
             }}
             
             QPushButton:pressed {{
-                background-color: {colors['button_active']};
+                background-color: {colors['sidebar_active']};
             }}
             
-            /* Input styles */
-            QLineEdit, QTextEdit {{
+            QToolButton {{
+                background-color: transparent;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+            }}
+            
+            QToolButton:hover {{
+                background-color: {colors['sidebar_hover']};
+            }}
+            
+            QLabel {{
+                color: {colors['sidebar_text']};
+            }}
+            
+            QTextEdit {{
                 background-color: {colors['input_bg']};
-                border: 1px solid {colors['border_primary']};
+                color: {colors['input_text']};
+                border: 1px solid {colors['input_border']};
                 border-radius: 6px;
                 padding: 8px;
-                color: {colors['text_primary']};
+                selection-background-color: {colors['selection_bg']};
+                selection-color: {colors['selection_text']};
             }}
             
-            /* Combobox styles */
-            QComboBox {{
+            QLineEdit {{
                 background-color: {colors['input_bg']};
-                border: 1px solid {colors['border_primary']};
+                color: {colors['input_text']};
+                border: 1px solid {colors['input_border']};
                 border-radius: 6px;
                 padding: 8px;
-                color: {colors['text_primary']};
-            }}
-            
-            /* Sidebar specific styles */
-            QWidget#sidebar {{
-                background-color: {colors['sidebar_bg']};
-                border-right: 1px solid {colors['border_primary']};
-            }}
-            
-            QLabel#sidebar_title {{
-                color: {colors['text_primary']};
-                font-weight: bold;
-                font-size: 15px;
-                padding: 10px;
-            }}
-            
-            /* Dialog styles */
-            QDialog {{
-                background-color: {colors['background']};
+                selection-background-color: {colors['selection_bg']};
+                selection-color: {colors['selection_text']};
             }}
         """
-        
-        # Add transition styles if enabled
-        if self._transitions_enabled:
-            base_styles += """
-                * {
-                    transition: background-color 0.15s ease-in-out,
-                              color 0.15s ease-in-out,
-                              border-color 0.15s ease-in-out;
-                }
-            """
-        
-        return base_styles
 
     def apply_theme(self, widget, theme_name="default"):
         """Apply theme to widget and all its children"""
-        stylesheet = self.get_stylesheet(theme_name, type(widget).__name__)
+        stylesheet = self.get_stylesheet(theme_name)
         widget.setStyleSheet(stylesheet)
         self.current_theme = theme_name
         self.theme_changed.emit(theme_name)
@@ -172,7 +175,3 @@ class ThemeManager(QObject):
     def get_icon_suffix(self):
         """Get the appropriate icon suffix based on current theme"""
         return "_dark" if self.current_theme == "dark_midnight" else ""
-
-    def enable_transitions(self, enabled=True):
-        """Enable or disable theme transition animations"""
-        self._transitions_enabled = enabled
