@@ -97,8 +97,12 @@ class SidebarMenu(QWidget):
         
     def create_menu_section(self, layout, items):
         for text, icon, has_menu, menu_items in items:
-            button = QPushButton(text)  # Set initial text
-            button.setProperty("text", text)
+            # Create button with text directly
+            button = QPushButton()
+            
+            # IMPORTANT: Set text as both property AND button text
+            button.setText(text)  # Set initial text
+            button.setProperty("actualText", text)  # Store text as property with different name
             
             # Set larger font size
             if os.name == 'posix':
@@ -111,15 +115,18 @@ class SidebarMenu(QWidget):
             if os.path.exists(icon_path):
                 button.setIcon(QIcon(icon_path))
                 button.setIconSize(QSize(32, 32))
-            button.setProperty("icon_base", icon)
+            
+            button.setFixedHeight(50)
             
             # Clear text if not expanded
             if not self.expanded:
                 button.setText("")
-                button.setToolTip(text)
             
-            button.setFixedHeight(50)
+            # Add button to layout and store reference
+            self.buttons.append(button)
+            layout.addWidget(button)
             
+            # Set up connections
             if has_menu and menu_items:
                 menu = QMenu()
                 for item_text, callback in menu_items:
@@ -134,9 +141,6 @@ class SidebarMenu(QWidget):
                     button.clicked.connect(self.settings_triggered.emit)
                 elif text == "Close":
                     button.clicked.connect(self.close_app_triggered.emit)
-            
-            self.buttons.append(button)
-            layout.addWidget(button)
             
     def update_logo(self):
         """Update logo based on current theme and sidebar state"""
@@ -265,16 +269,10 @@ class SidebarMenu(QWidget):
         self.update_logo()
         
     def update_button_states(self):
-        print("Updating button states")  # Debug print
         for button in self.buttons:
-            text = button.property("text")
-            print(f"Button text property: {text}")  # Debug print
-            
+            actual_text = button.property("actualText")
             if self.expanded:
-                button.setText(text)
-                button.setToolTip("")
-                print(f"Setting button text to: {text}")  # Debug print
+                button.setText(actual_text)
             else:
                 button.setText("")
-                button.setToolTip(text)
-                print(f"Clearing button text")  # Debug print
+                button.setToolTip(actual_text)
