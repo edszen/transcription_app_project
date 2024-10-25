@@ -93,17 +93,34 @@ class SidebarMenu(QWidget):
         layout.setContentsMargins(8, 16, 8, 16)  # Increased margins
         layout.setSpacing(4)  # Increased spacing
         
+        # Container widget for the logo to maintain consistent spacing
+        logo_widget = QWidget()
+        logo_layout = QVBoxLayout(logo_widget)
+        logo_layout.setContentsMargins(0, 0, 0, 0)
+        logo_layout.setAlignment(Qt.AlignCenter)  # Center align the logo container
+        
         # Logo container with much larger fixed height
         self.logo_container = QLabel()
         self.logo_container.setAlignment(Qt.AlignCenter)
-        self.logo_container.setFixedHeight(180)  # Increased height
-        self.logo_container.setMinimumWidth(64)  # Minimum width for logo
-        layout.addWidget(self.logo_container)
+        self.logo_container.setMinimumWidth(64)
+        self.logo_container.setFixedHeight(180)
+        logo_layout.addWidget(self.logo_container)
         
-        layout.addSpacing(16)  # More space after logo
+        # Add logo widget to main layout
+        layout.addWidget(logo_widget)
+        
+        # Create a fixed-width container for the toggle button
+        toggle_container = QWidget()
+        toggle_container.setFixedWidth(64)  # Match the collapsed sidebar width
+        toggle_layout = QHBoxLayout(toggle_container)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_layout.setAlignment(Qt.AlignLeft)  # Ensure left alignment
+        
+        #layout.addSpacing(16)  # More space after logo
         
         # Toggle button
         self.toggle_button = QToolButton()
+        self.toggle_button.setFixedSize(64, 64)  # Fixed size for the button
         toggle_icon_path = self.get_icon_path("menu_expand")
         if os.path.exists(toggle_icon_path):
             original_pixmap = QPixmap(toggle_icon_path)
@@ -117,9 +134,15 @@ class SidebarMenu(QWidget):
             }
         """)
         self.toggle_button.clicked.connect(self.toggle_sidebar)
-        layout.addWidget(self.toggle_button, 0, Qt.AlignCenter)
+        # Add toggle button to its container with left alignment
+        toggle_layout.addWidget(self.toggle_button)
+        toggle_layout.addStretch()  # This pushes the button to the left
         
-        layout.addSpacing(16)
+        # Add toggle container to main layout
+        layout.addWidget(toggle_container)
+        #layout.addWidget(self.toggle_button, 0, Qt.AlignCenter)
+        
+        #layout.addSpacing(16)
         
         # Main menu section
         main_menu = [
@@ -188,41 +211,51 @@ class SidebarMenu(QWidget):
         base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
                             'assets', 'icons')
         
-        # Use SVG logo path
         if self.expanded:
-            # Use letters-only logo when expanded
             logo_file = "logo_letters_only_dark.svg" if self.current_theme == "dark_midnight" else "logo_letters_only.svg"
         else:
-            # Use icon-only logo when collapsed
             logo_file = "logo_dark.svg" if self.current_theme == "dark_midnight" else "logo.svg"
             
         logo_path = os.path.join(base_path, logo_file)
         
         if os.path.exists(logo_path):
-            # For SVG files, we'll use QSvgWidget
             if logo_path.endswith('.svg'):
                 if not hasattr(self, 'svg_widget'):
                     from PyQt5.QtSvg import QSvgWidget
                     self.svg_widget = QSvgWidget()
-                    # Replace the logo_container with the svg_widget
-                    self.layout().replaceWidget(self.logo_container, self.svg_widget)
-                    self.logo_container.deleteLater()
-                    self.logo_container = self.svg_widget
+                    # Don't replace the container, add the SVG widget to it
+                    self.logo_container.setLayout(QVBoxLayout())
+                    self.logo_container.layout().addWidget(self.svg_widget)
+                    self.logo_container.layout().setContentsMargins(0, 0, 0, 0)
+                    self.logo_container.layout().setAlignment(Qt.AlignCenter)  # Center in container
                 
                 self.svg_widget.load(logo_path)
-                # Set size based on sidebar state
+                # Calculate sizes while maintaining aspect ratio
                 if self.expanded:
-                    self.svg_widget.setFixedSize(200, 200)  # Larger size when expanded
+                    # For expanded state, set width and let height adjust naturally
+                    natural_size = self.svg_widget.sizeHint()
+                    aspect_ratio = natural_size.width() / natural_size.height()
+                    target_width = 200
+                    natural_height = int(target_width / aspect_ratio)
+                    self.svg_widget.setFixedSize(target_width, natural_height)
+                    self.logo_container.setMinimumWidth(200)
                 else:
-                    self.svg_widget.setFixedSize(64, 64)  # Larger size when collapsed
-                
-            else:  # Fallback to PNG if SVG doesn't exist
+                    # For collapsed state, keep it 64x64
+                    self.svg_widget.setFixedSize(64, 64)
+                    self.logo_container.setMinimumWidth(64)
+                    
+                self.svg_widget.setVisible(True)
+            else:
+                # Fallback to PNG handling
                 pixmap = QPixmap(logo_path)
-                # Much larger logo sizes
-                scaled_height = 200 if self.expanded else 160  # Increased sizes
-                scaled_pixmap = pixmap.scaledToHeight(scaled_height, Qt.SmoothTransformation)
+                if self.expanded:
+                    scaled_pixmap = pixmap.scaledToWidth(200, Qt.SmoothTransformation)
+                else:
+                    scaled_pixmap = pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.logo_container.setPixmap(scaled_pixmap)
-                self.logo_container.setAlignment(Qt.AlignCenter)
+                self.logo_container.setVisible(True)
+                
+        self.logo_container.setAlignment(Qt.AlignCenter)   
 
     def update_theme(self, theme_name):
         """Update sidebar theme and logo"""
