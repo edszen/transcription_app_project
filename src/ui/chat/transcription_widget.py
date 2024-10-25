@@ -20,6 +20,11 @@ class TranscriptionWidget(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
         
+        # Upload button - Add this new section
+        self.upload_button = QPushButton('Upload and Transcribe Audio')
+        self.upload_button.clicked.connect(self.upload_and_transcribe)
+        layout.addWidget(self.upload_button)
+        
         # Cancel button
         self.cancel_button = QPushButton('Cancel Transcription')
         self.cancel_button.clicked.connect(self.cancel_transcription)

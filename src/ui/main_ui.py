@@ -48,30 +48,6 @@ class TranscriptionApp(QWidget):
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for better integration
         
-        # Menu buttons
-        menu_layout = QHBoxLayout()
-        menu_layout.setContentsMargins(10, 10, 10, 10)
-        menu_layout.setSpacing(8)
-        
-        self.upload_button = QPushButton('Upload and Transcribe Audio')
-        
-        # Use native button styling
-        button_style = """
-            QPushButton {
-                min-height: 24px;
-                padding: 4px 12px;
-                border-radius: 6px;
-                font-size: 13px;
-            }
-        """
-        
-        self.upload_button.setStyleSheet(button_style)
-        
-        menu_layout.addWidget(self.upload_button)
-        menu_layout.addStretch()
-        
-        main_layout.addLayout(menu_layout)
-        
         # Maybe delete
         #self.chat_widget.new_question.connect(self.ask_chatgpt)
         
@@ -100,9 +76,6 @@ class TranscriptionApp(QWidget):
         self.setLayout(main_layout)
         self.setWindowTitle('GatherScribe')
         #self.setGeometry(100, 100, 1200, 800)
-        
-        # Connect buttons
-        self.upload_button.clicked.connect(self.transcription_widget.upload_and_transcribe)
         
     def update_theme(self, theme):
         colors = self.theme_manager.get_colors(theme)
