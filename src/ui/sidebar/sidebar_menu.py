@@ -128,23 +128,31 @@ class SidebarMenu(QWidget):
                 original_pixmap = QPixmap(icon_path)
                 scaled_pixmap = original_pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Larger scale
                 button.setIcon(QIcon(scaled_pixmap))
-                button.setIconSize(QSize(96, 96))  # Match the scaled size
+                #button.setIconSize(QSize(96, 96))  # Match the scaled size
             
             button.setFixedHeight(50)
             button.setStyleSheet("""
                 QPushButton {
                     text-align: center;
-                    padding-left: 0px;
+                    padding: 0px;
+                    margin: 0px;
+                }
+                QPushButton::menu-indicator {
+                    width: 0px;
                 }
             """)
             
             # Clear text if not expanded
             if not self.expanded:
                 button.setText("")
+                
+            # Center align the icons
+            button.setIconSize(QSize(96, 96))  # Consistent icon size
+            button.setFixedWidth(64)  # Match sidebar width when collapsed
             
             # Add button to layout and store reference
             self.buttons.append(button)
-            layout.addWidget(button)
+            layout.addWidget(button, 0, Qt.AlignCenter)
             
             # Set up connections
             if has_menu and menu_items:
