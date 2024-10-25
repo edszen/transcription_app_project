@@ -110,13 +110,21 @@ class SidebarMenu(QWidget):
             else:
                 button.setFont(QFont('Segoe UI', 14))
             
-            # Set icon
+            # Scale high-res PNG and center it
             icon_path = self.get_icon_path(icon)
             if os.path.exists(icon_path):
-                button.setIcon(QIcon(icon_path))
-                button.setIconSize(QSize(32, 32))
+                original_pixmap = QPixmap(icon_path)
+                scaled_pixmap = original_pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Larger scale
+                button.setIcon(QIcon(scaled_pixmap))
+                button.setIconSize(QSize(96, 96))  # Match the scaled size
             
             button.setFixedHeight(50)
+            button.setStyleSheet("""
+                QPushButton {
+                    text-align: center;
+                    padding-left: 0px;
+                }
+            """)
             
             # Clear text if not expanded
             if not self.expanded:
