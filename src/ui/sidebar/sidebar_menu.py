@@ -33,6 +33,7 @@ class SidebarMenu(QWidget):
         self.init_ui()
         self.setFixedWidth(80)  # Increased from 64 to accommodate larger icons
         self.update_button_states()
+        self.update_logo()
         
         # Important: Remove any hardcoded background color
         self.setAttribute(Qt.WA_StyledBackground, True)
@@ -263,7 +264,7 @@ class SidebarMenu(QWidget):
         
     def toggle_sidebar(self):
         print("Toggle sidebar called")  # Debug print
-        target_width = 260 if not self.expanded else 80
+        target_width = 200 if not self.expanded else 80
         
         # Set the expanded state before updating buttons
         self.expanded = not self.expanded
