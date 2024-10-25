@@ -1,9 +1,59 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QToolButton, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QToolButton, 
                              QLabel, QFrame, QMenu, QAction, QSizePolicy)
 from PyQt5.QtCore import Qt, QSize, pyqtSignal, QSettings, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QIcon, QFont, QPalette, QColor, QPixmap
 import os
 from src.ui.styles.theme_manager import ThemeManager
+
+class SidebarButton(QPushButton):
+    def __init__(self, text, icon_path, parent=None):
+        super().__init__(parent)
+        self.setText("")  # Clear default text
+        self.setProperty("actualText", text)
+        
+        # Create horizontal layout
+        self.layout = QHBoxLayout(self)
+        self.layout.setContentsMargins(8, 4, 16, 4) # Increased right margin
+        self.layout.setSpacing(16)  # Space between icon and text
+        
+        # Create and set up icon label
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(48, 48)  # Fixed size for icon container
+        if icon_path and os.path.exists(icon_path):
+            pixmap = QPixmap(icon_path)
+            scaled_pixmap = pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.icon_label.setPixmap(scaled_pixmap)
+        self.icon_label.setAlignment(Qt.AlignCenter)
+        
+        # Create and set up text label with size policy
+        self.text_label = QLabel(text)
+        self.text_label.setVisible(False)
+        self.text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # Ensure text doesn't get clipped
+        self.text_label.setMinimumWidth(100)  # Minimum width for text
+        
+        # Add widgets to layout
+        self.layout.addWidget(self.icon_label)
+        self.layout.addWidget(self.text_label, 1)  # Give text label stretch factor
+        
+        # Style settings
+        self.setFixedHeight(56)  # Slightly increased height
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        
+    def setExpanded(self, expanded):
+        """Toggle text visibility and adjust width"""
+        self.text_label.setVisible(expanded)
+        if expanded:
+            self.setMinimumWidth(200)  # Ensure enough width when expanded
+        else:
+            self.setMinimumWidth(64)  # Collapsed width
+        
+    def updateIcon(self, icon_path):
+        """Update the button's icon"""
+        if icon_path and os.path.exists(icon_path):
+            pixmap = QPixmap(icon_path)
+            scaled_pixmap = pixmap.scaled(32, 32, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.icon_label.setPixmap(scaled_pixmap)
 
 class SidebarMenu(QWidget):
     new_session_triggered = pyqtSignal()
@@ -109,52 +159,15 @@ class SidebarMenu(QWidget):
         
     def create_menu_section(self, layout, items):
         for text, icon, has_menu, menu_items in items:
-            # Create button with text directly
-            button = QPushButton()
-            
-            # IMPORTANT: Set text as both property AND button text
-            button.setText(text)  # Set initial text
-            button.setProperty("actualText", text)  # Store text as property with different name
-            
-            # Set larger font size
-            if os.name == 'posix':
-                button.setFont(QFont('.AppleSystemUIFont', 14))
-            else:
-                button.setFont(QFont('Segoe UI', 14))
-            
-            # Scale high-res PNG and center it
+            # Create custom button
             icon_path = self.get_icon_path(icon)
-            if os.path.exists(icon_path):
-                original_pixmap = QPixmap(icon_path)
-                scaled_pixmap = original_pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Larger scale
-                button.setIcon(QIcon(scaled_pixmap))
-                #button.setIconSize(QSize(96, 96))  # Match the scaled size
+            button = SidebarButton(text, icon_path, self)
             
-            button.setFixedHeight(50)
-            button.setStyleSheet("""
-                QPushButton {
-                    text-align: center;
-                    padding: 0px;
-                    margin: 0px;
-                }
-                QPushButton::menu-indicator {
-                    width: 0px;
-                }
-            """)
-            
-            # Clear text if not expanded
-            if not self.expanded:
-                button.setText("")
-                
-            # Center align the icons
-            button.setIconSize(QSize(96, 96))  # Consistent icon size
-            button.setFixedWidth(64)  # Match sidebar width when collapsed
-            
-            # Add button to layout and store reference
+            # Store reference and add to layout
             self.buttons.append(button)
-            layout.addWidget(button, 0, Qt.AlignCenter)
+            layout.addWidget(button, 0, Qt.AlignLeft)
             
-            # Set up connections
+            # Set up menu if needed
             if has_menu and menu_items:
                 menu = QMenu()
                 for item_text, callback in menu_items:
@@ -272,7 +285,7 @@ class SidebarMenu(QWidget):
         
     def toggle_sidebar(self):
         print("Toggle sidebar called")  # Debug print
-        target_width = 200 if not self.expanded else 80
+        target_width = 220 if not self.expanded else 80
         
         # Set the expanded state before updating buttons
         self.expanded = not self.expanded
@@ -293,10 +306,10 @@ class SidebarMenu(QWidget):
         self.update_logo()
         
     def update_button_states(self):
+        """Update button states when sidebar toggles"""
         for button in self.buttons:
-            actual_text = button.property("actualText")
-            if self.expanded:
-                button.setText(actual_text)
+            button.setExpanded(self.expanded)
+            if not self.expanded:
+                button.setToolTip(button.property("actualText"))
             else:
-                button.setText("")
-                button.setToolTip(actual_text)
+                button.setToolTip("")
