@@ -53,9 +53,20 @@ class SidebarMenu(QWidget):
         
         # Toggle button
         self.toggle_button = QToolButton()
-        self.toggle_button.setIconSize(QSize(32, 32))
+        toggle_icon_path = self.get_icon_path("menu_expand")
+        if os.path.exists(toggle_icon_path):
+            original_pixmap = QPixmap(toggle_icon_path)
+            scaled_pixmap = original_pixmap.scaled(96, 96, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.toggle_button.setIcon(QIcon(scaled_pixmap))
+        self.toggle_button.setIconSize(QSize(96, 96))
+        self.toggle_button.setStyleSheet("""
+            QToolButton {
+                padding: 0px;
+                margin: 0px;
+            }
+        """)
         self.toggle_button.clicked.connect(self.toggle_sidebar)
-        layout.addWidget(self.toggle_button)
+        layout.addWidget(self.toggle_button, 0, Qt.AlignCenter)
         
         layout.addSpacing(16)
         
@@ -181,7 +192,7 @@ class SidebarMenu(QWidget):
                 if self.expanded:
                     self.svg_widget.setFixedSize(200, 200)  # Larger size when expanded
                 else:
-                    self.svg_widget.setFixedSize(160, 160)  # Larger size when collapsed
+                    self.svg_widget.setFixedSize(64, 64)  # Larger size when collapsed
                 
             else:  # Fallback to PNG if SVG doesn't exist
                 pixmap = QPixmap(logo_path)
