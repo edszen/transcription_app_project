@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLine
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QColor, QPalette
 from src.ui.styles.theme_manager import ThemeManager
+from src.ui.media.media_player import MediaPlayer
 import json
 import os
 from src.utils.file_operations import FileOperations
@@ -52,6 +53,8 @@ class MessageWidget(QWidget):
                 border: 1px solid {colors['border_primary']};
             }}
         """)
+        
+    pass
 
 class ChatWidget(QWidget):
     new_question = pyqtSignal(str)
@@ -68,6 +71,11 @@ class ChatWidget(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Media Player at the top
+        self.media_player = MediaPlayer()
+        layout.addWidget(self.media_player)
 
         # Chat history
         self.chat_history = QScrollArea()
@@ -118,7 +126,7 @@ class ChatWidget(QWidget):
         self.current_theme = theme  # Store current theme
         colors = self.theme_manager.get_colors(theme)
         
-        # Update main widget style
+        # Main theme styling
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: {colors['background']};
@@ -186,6 +194,16 @@ class ChatWidget(QWidget):
             widget = self.chat_layout.itemAt(i).widget()
             if isinstance(widget, MessageWidget):
                 widget.apply_theme(theme)
+                
+    def set_audio_file(self, file_path):
+        """Load audio file into the media player"""
+        if hasattr(self, 'media_player'):
+            self.media_player.load_media(file_path)
+
+    def cleanup(self):
+        """Clean up resources before widget is destroyed"""
+        if hasattr(self, 'media_player'):
+            self.media_player.cleanup()
 
     def send_question(self):
         question = self.input_field.toPlainText().strip()

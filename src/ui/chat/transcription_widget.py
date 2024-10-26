@@ -1,11 +1,13 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QTextEdit, 
                              QProgressBar, QHBoxLayout,QFileDialog, QMessageBox, QComboBox)
-from PyQt5.QtCore import pyqtSlot, QSettings, QTimer
+from PyQt5.QtCore import pyqtSlot, QSettings, QTimer, pyqtSignal
 from src.core.transcribe import Transcriber
 from src.utils.file_operations import FileOperations
 from src.ui.styles.theme_manager import ThemeManager
 
 class TranscriptionWidget(QWidget):
+    audio_loaded = pyqtSignal(str)
+    
     def __init__(self, settings):
         super().__init__()
         self.settings = settings
@@ -114,6 +116,7 @@ class TranscriptionWidget(QWidget):
     def upload_and_transcribe(self):
         file_path, _ = QFileDialog.getOpenFileName(self, 'Upload Audio', '', 'Audio Files (*.mp3 *.wav *.m4a *.ogg *.mp4);;All Files (*)')
         if file_path:
+            self.audio_loaded.emit(file_path)
             self.start_transcription(file_path)
 
     def start_transcription(self, file_path):

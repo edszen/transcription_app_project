@@ -122,6 +122,7 @@ class TranscriptionApp(QWidget):
         self.chatgpt.response_received.connect(self.chat_widget.add_response)
         self.chatgpt.error_occurred.connect(self.chat_widget.add_response)
         self.chat_widget.new_question.connect(self.ask_chatgpt)
+        self.transcription_widget.audio_loaded.connect(self.chat_widget.set_audio_file)
             
     def ask_chatgpt(self, question):
         transcript = self.transcription_widget.get_transcript()
