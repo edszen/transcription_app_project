@@ -10,6 +10,7 @@ from src.ui.settings import SettingsDialog
 from src.ui.help_dialog import HelpDialog
 from src.ui.sidebar.sidebar_menu import SidebarMenu
 from src.ui.styles.theme_manager import ThemeManager
+import datetime
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -26,7 +27,6 @@ class MainWindow(QMainWindow):
         current_theme = self.settings.value("app_theme", "default").lower()
         self.theme_manager.apply_theme(self, current_theme)
         
-
     def init_ui(self):
         self.setWindowTitle('GatherScribe')
         self.setGeometry(100, 100, 1200, 800)
@@ -66,11 +66,23 @@ class MainWindow(QMainWindow):
             self.file_ops.last_saved_state = None
     
     def load_session(self):
+        """Load a session file"""
         if self.check_unsaved_changes():
             session_data = self.file_ops.load_session()
             if session_data:
-                self.transcription_app.transcription_widget.set_transcript(session_data['transcript'])
-                self.transcription_app.chat_widget.set_chat_history(session_data['chat_history'])
+                # Load transcript
+                self.transcription_app.transcription_widget.set_transcript(session_data.get('transcript', ''))
+                
+                # Load chat history
+                chat_history = session_data.get('chat_history', [])
+                if chat_history:
+                    # Create a new chat for this session
+                    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                    chat_name = f"Loaded Session {timestamp}"
+                    
+                    # Reset chat widget state and load the chat history
+                    self.transcription_app.chat_widget.load_session_chat(chat_name, chat_history)
+                    
                 return True
         return False
 

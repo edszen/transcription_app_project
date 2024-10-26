@@ -63,12 +63,21 @@ class ChatWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.theme_manager = ThemeManager()
-        self.chats = {}
-        self.current_chat_id = None
         self.file_ops = FileOperations()
         self.current_theme = "default"  # Track current theme
+        self.chats = {}
+        self.current_chat_id = None
+        # Create sessions directory if it doesn't exist
+        os.makedirs(self.file_ops.sessions_dir, exist_ok=True)
         self.init_ui()
         self.load_chats()
+        
+        # If there are chats, load the most recent one
+        if self.chats:
+            last_chat_id = list(self.chats.keys())[-1]
+            self.current_chat_id = last_chat_id
+            self.saved_chats.setCurrentText(self.chats[last_chat_id]['name'])
+            self.display_chat(last_chat_id) 
 
     def init_ui(self):
         # Main layout with no margins to maximize space
@@ -340,31 +349,22 @@ class ChatWidget(QWidget):
         for chat_id, chat_data in self.chats.items():
             if chat_data['name'] == chat_name:
                 self.current_chat_id = chat_id
-                
-                # Clear the display
-                for i in reversed(range(self.chat_layout.count())): 
-                    self.chat_layout.itemAt(i).widget().setParent(None)
-                    
-                # Reload the messages
-                for message in chat_data['messages']:
-                    message_widget = MessageWidget(
-                        sender=message['sender'],
-                        message=message['message'],
-                        theme_manager=self.theme_manager,
-                        parent=self
-                    )
-                    message_widget.apply_theme(self.current_theme)
-                    self.chat_layout.addWidget(message_widget)
+                self.display_chat(chat_id)
                 break
 
     def save_chats(self):
         """Save chat history to local storage"""
-        chats_file = os.path.join(self.file_ops.sessions_dir, 'chat_history.json')
+        chats_file = os.path.join(self.file_ops.chats_dir, 'chat_history.json')
         try:
             with open(chats_file, 'w', encoding='utf-8') as f:
                 json.dump(self.chats, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"Error saving chat history: {str(e)}")
+            QMessageBox.warning(
+                self,
+                "Save Error",
+                f"Failed to save chat history: {str(e)}"
+            )
             
     def save_chat(self):
         """Save the current chat session with option to include transcript"""
@@ -390,10 +390,11 @@ class ChatWidget(QWidget):
             transcript = main_window.transcription_app.transcription_widget.get_transcript()
 
         # Get save file path with format options
+        save_dir = self.file_ops.transcripts_dir if transcript else self.file_ops.chats_dir
         file_path, selected_filter = QFileDialog.getSaveFileName(
             self,
             'Save Chat',
-            os.path.join(self.file_ops.sessions_dir, f"{self.chats[self.current_chat_id]['name']}"),
+            os.path.join(save_dir, f"{self.chats[self.current_chat_id]['name']}"),
             'Text Files (*.txt);;JSON Files (*.json)'
         )
 
@@ -438,21 +439,28 @@ class ChatWidget(QWidget):
             
     def load_chats(self):
         """Load chat history from local storage"""
-        chats_file = os.path.join(self.file_ops.sessions_dir, 'chat_history.json')
+        chats_file = os.path.join(self.file_ops.chats_dir, 'chat_history.json')
         if os.path.exists(chats_file):
             try:
                 with open(chats_file, 'r', encoding='utf-8') as f:
                     self.chats = json.load(f)
+                
+                # Clear and repopulate the combo box
                 self.saved_chats.clear()
                 for chat_id, chat_data in self.chats.items():
                     self.saved_chats.addItem(chat_data['name'])
+                    
             except Exception as e:
                 print(f"Error loading chat history: {str(e)}")
+                self.chats = {}
+        else:
+            self.chats = {}
                 
     def get_chat_history(self):
         """Get the chat history for the current chat"""
         if self.current_chat_id and self.current_chat_id in self.chats:
-            return self.chats[self.current_chat_id]['messages']
+            # Return a copy of the messages to avoid modification issues
+            return list(self.chats[self.current_chat_id]['messages'])
         return []
 
     def set_chat_history(self, chat_history):
@@ -480,7 +488,62 @@ class ChatWidget(QWidget):
 
     def clear(self):
         """Clear the entire chat widget state"""
-        self.clear_chat()
+        for i in reversed(range(self.chat_layout.count())): 
+            self.chat_layout.itemAt(i).widget().setParent(None)
         self.current_chat_id = None
         self.chats = {}
         self.saved_chats.clear()
+        # Save the cleared state
+        self.save_chats()
+        
+    def display_chat(self, chat_id):
+        """Display the messages for a specific chat"""
+        if chat_id not in self.chats:
+            return
+            
+        # Clear current display
+        for i in reversed(range(self.chat_layout.count())): 
+            self.chat_layout.itemAt(i).widget().setParent(None)
+            
+        # Display messages
+        for message in self.chats[chat_id]['messages']:
+            message_widget = MessageWidget(
+                sender=message['sender'],
+                message=message['message'],
+                theme_manager=self.theme_manager,
+                parent=self
+            )
+            message_widget.apply_theme(self.current_theme)
+            self.chat_layout.addWidget(message_widget)
+
+    def load_session_chat(self, chat_name, messages):
+        """Load a chat from a session file"""
+        # Create a new chat for the session
+        chat_id = chat_name
+        self.chats[chat_id] = {
+            "name": chat_name,
+            "messages": messages
+        }
+        
+        # Update UI
+        self.current_chat_id = chat_id
+        self.saved_chats.addItem(chat_name)
+        self.saved_chats.setCurrentText(chat_name)
+        
+        # Clear current display
+        for i in reversed(range(self.chat_layout.count())): 
+            self.chat_layout.itemAt(i).widget().setParent(None)
+        
+        # Display messages
+        for message in messages:
+            message_widget = MessageWidget(
+                sender=message['sender'],
+                message=message['message'],
+                theme_manager=self.theme_manager,
+                parent=self
+            )
+            message_widget.apply_theme(self.current_theme)
+            self.chat_layout.addWidget(message_widget)
+        
+        # Save updated chat history
+        self.save_chats()

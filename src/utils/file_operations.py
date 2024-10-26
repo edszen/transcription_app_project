@@ -9,16 +9,27 @@ class FileOperations:
     def __init__(self, main_window=None):
         self.main_window = main_window
         self.documents_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'GatherScribe')
+        
+        # Dedicated directories for different types of files
         self.sessions_dir = os.path.join(self.documents_dir, 'Sessions')
+        self.transcripts_dir = os.path.join(self.documents_dir, 'Transcripts')
+        self.chats_dir = os.path.join(self.documents_dir, 'Chats')
+        
         self._ensure_directories()
         self.current_session_path = None
         self.last_saved_state = None
 
     def _ensure_directories(self):
         """Ensure all required directories exist"""
-        os.makedirs(self.documents_dir, exist_ok=True)
-        os.makedirs(self.sessions_dir, exist_ok=True)
-
+        directories = [
+            self.documents_dir,
+            self.sessions_dir,    # For .gss session files only
+            self.transcripts_dir, # For exported transcripts and transcripts+chats
+            self.chats_dir       # For chat history and chat-related files
+        ]
+        for directory in directories:
+            os.makedirs(directory, exist_ok=True)
+            
     def save_transcript(self, transcript, parent_widget):
         """Save transcript to external file (separate from session saving)"""
         default_dir = os.path.join(self.documents_dir, 'Transcripts')
