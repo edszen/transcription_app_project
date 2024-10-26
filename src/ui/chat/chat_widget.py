@@ -124,8 +124,8 @@ class ChatWidget(QWidget):
         self.new_chat_button.clicked.connect(self.new_chat)
         
         # Set fixed height for management buttons
-        self.clear_button.setFixedHeight(40)
-        self.new_chat_button.setFixedHeight(40)
+        self.clear_button.setFixedHeight(42)
+        self.new_chat_button.setFixedHeight(42)
         
         buttons_layout.addWidget(self.clear_button)
         buttons_layout.addWidget(self.new_chat_button)
@@ -134,7 +134,7 @@ class ChatWidget(QWidget):
         # Saved chats dropdown
         dropdown_container = QWidget()
         dropdown_layout = QVBoxLayout(dropdown_container)
-        dropdown_layout.setContentsMargins(10, 0, 10, 10)
+        dropdown_layout.setContentsMargins(10, 0, 10, 0)
         
         self.saved_chats = QComboBox()
         self.saved_chats.setFixedHeight(40)  # Match height
@@ -144,9 +144,9 @@ class ChatWidget(QWidget):
 
         # Bottom buttons container with fixed height
         bottom_container = QWidget()
-        bottom_container.setFixedHeight(60)  # Match the transcription widget button height
+        bottom_container.setFixedHeight(70)  # Match the transcription widget button height
         bottom_layout = QHBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(10, 0, 10, 14)
+        bottom_layout.setContentsMargins(10, 0, 10, 0)
         bottom_layout.setSpacing(10)
 
         # Rename and Save chat buttons
@@ -154,8 +154,8 @@ class ChatWidget(QWidget):
         self.save_chat_button = QPushButton("Save Chat")
         
         # Set fixed height for bottom buttons
-        self.rename_chat_button.setFixedHeight(40)
-        self.save_chat_button.setFixedHeight(40)
+        self.rename_chat_button.setFixedHeight(42)
+        self.save_chat_button.setFixedHeight(42)
         
         self.rename_chat_button.clicked.connect(self.rename_chat)
         self.save_chat_button.clicked.connect(self.save_chat)
