@@ -109,6 +109,16 @@ class Transcriber(QObject):
             self.status_updated.emit("Formatting transcript...")
             formatted_transcript = self._format_transcript(aligned_result)
             
+            formatted_transcript = self._format_transcript(aligned_result)
+        
+            # Auto-save after successful transcription
+            if hasattr(self, 'main_window') and self.main_window:
+                self.main_window.file_ops.save_session(
+                    formatted_transcript, 
+                    [], # Empty chat history for new transcription
+                    auto_save=True
+                )
+            
             self.status_updated.emit("Transcription completed")
             self.finished.emit(formatted_transcript)
         

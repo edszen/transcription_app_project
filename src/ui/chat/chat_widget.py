@@ -350,3 +350,39 @@ class ChatWidget(QWidget):
             self.saved_chats.clear()
             for chat_id, chat_data in self.chats.items():
                 self.saved_chats.addItem(chat_data['name'])
+                
+    def get_chat_history(self):
+        """Get the chat history for the current chat"""
+        if self.current_chat_id and self.current_chat_id in self.chats:
+            return self.chats[self.current_chat_id]['messages']
+        return []
+
+    def set_chat_history(self, chat_history):
+        """Load a saved chat history"""
+        self.clear_chat()
+        if chat_history:
+            # Create a new chat if none exists
+            if not self.current_chat_id:
+                self.new_chat()
+                
+            # Add each message from the history
+            for message in chat_history:
+                message_widget = MessageWidget(
+                    sender=message['sender'],
+                    message=message['message'],
+                    theme_manager=self.theme_manager,
+                    parent=self
+                )
+                message_widget.apply_theme(self.current_theme)
+                self.chat_layout.addWidget(message_widget)
+                
+            # Update the chat's message history
+            self.chats[self.current_chat_id]['messages'] = chat_history
+            self.save_chats()
+
+    def clear(self):
+        """Clear the entire chat widget state"""
+        self.clear_chat()
+        self.current_chat_id = None
+        self.chats = {}
+        self.saved_chats.clear()

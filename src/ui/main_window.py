@@ -56,15 +56,23 @@ class MainWindow(QMainWindow):
         self.sidebar.toggle_speaker_names_triggered.connect(self.toggle_speaker_names)
         self.sidebar.help_triggered.connect(self.show_help)
         self.sidebar.settings_triggered.connect(self.open_settings)
-        self.sidebar.close_app_triggered.connect(self.close_application)
+        self.sidebar.close_app_triggered.connect(self.close)
         
     def new_session(self):
-        # Implement new session logic
-        pass
+        if self.check_unsaved_changes():
+            self.transcription_app.transcription_widget.clear()
+            self.transcription_app.chat_widget.clear()
+            self.file_ops.current_session_path = None
+            self.file_ops.last_saved_state = None
     
     def load_session(self):
-        # This can be the same as open_session if there's no distinction
-        self.open_session()
+        if self.check_unsaved_changes():
+            session_data = self.file_ops.load_session()
+            if session_data:
+                self.transcription_app.transcription_widget.set_transcript(session_data['transcript'])
+                self.transcription_app.chat_widget.set_chat_history(session_data['chat_history'])
+                return True
+        return False
 
     def open_session(self):
         session_data = self.file_ops.load_session()
@@ -75,7 +83,7 @@ class MainWindow(QMainWindow):
     def save_session(self):
         transcript = self.transcription_app.transcription_widget.get_transcript()
         chat_history = self.transcription_app.chat_widget.get_chat_history()
-        self.file_ops.save_session(transcript, chat_history)
+        return self.file_ops.save_session(transcript, chat_history)
         
     def edit_speaker_names(self):
         # Implement speaker name editing
@@ -101,22 +109,28 @@ class MainWindow(QMainWindow):
         dialog = SettingsDialog(self)
         if dialog.exec_():
             self.apply_theme()
-
-    def close_application(self):
+            
+    def closeEvent(self, event):
         if self.check_unsaved_changes():
-            self.close()
+            event.accept()
+        else:
+            event.ignore()
 
     def check_unsaved_changes(self):
-        # Check if there are unsaved changes
-        unsaved_changes = False  # Replace with actual check
-        if unsaved_changes:
-            reply = QMessageBox.question(self, 'Unsaved Changes',
-                                         "You have unsaved changes. Do you want to save before closing?",
-                                         QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
-                                         QMessageBox.Save)
+        transcript = self.transcription_app.transcription_widget.get_transcript()
+        chat_history = self.transcription_app.chat_widget.get_chat_history()
+        
+        if self.file_ops.has_unsaved_changes(transcript, chat_history):
+            reply = QMessageBox.question(
+                self,
+                'Unsaved Changes',
+                "You have unsaved changes. Do you want to save before continuing?",
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel,
+                QMessageBox.Save
+            )
+            
             if reply == QMessageBox.Save:
-                self.save_session()
-                return True
+                return self.save_session()
             elif reply == QMessageBox.Cancel:
                 return False
         return True
