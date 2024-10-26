@@ -115,7 +115,7 @@ class ChatWidget(QWidget):
         # Chat management buttons
         buttons_container = QWidget()
         buttons_layout = QHBoxLayout(buttons_container)
-        buttons_layout.setContentsMargins(8, 0, 8, 16)
+        buttons_layout.setContentsMargins(12, 0, 12, 16)
         buttons_layout.setSpacing(10)
         
         self.clear_button = QPushButton("Clear Chat")
@@ -134,7 +134,7 @@ class ChatWidget(QWidget):
         # Saved chats dropdown
         dropdown_container = QWidget()
         dropdown_layout = QVBoxLayout(dropdown_container)
-        dropdown_layout.setContentsMargins(12, 0, 10, 0)
+        dropdown_layout.setContentsMargins(15, 0, 14, 0)
         
         self.saved_chats = QComboBox()
         self.saved_chats.setFixedHeight(30)  # Match height
@@ -146,7 +146,7 @@ class ChatWidget(QWidget):
         bottom_container = QWidget()
         bottom_container.setFixedHeight(70)  # Match the transcription widget button height
         bottom_layout = QHBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(8, 0, 10, 0)
+        bottom_layout.setContentsMargins(12, 0, 12, 0)
         bottom_layout.setSpacing(10)
 
         # Rename and Save chat buttons
