@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit,
-                            QPushButton, QListWidget, QInputDialog, QScrollArea, QComboBox)
+                            QPushButton, QListWidget, QInputDialog, QScrollArea, QComboBox
+                            , QMessageBox, QFileDialog)
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QColor, QPalette
 from src.ui.styles.theme_manager import ThemeManager
@@ -289,19 +290,32 @@ class ChatWidget(QWidget):
         self.save_chats()
 
     def clear_chat(self):
+        """Clear current chat while preserving others"""
+        # Clear the display
         for i in reversed(range(self.chat_layout.count())): 
             self.chat_layout.itemAt(i).widget().setParent(None)
+            
+        # Clear the messages for current chat only
         if self.current_chat_id and self.current_chat_id in self.chats:
             self.chats[self.current_chat_id]['messages'] = []
             self.save_chats()
 
     def new_chat(self):
+        """Create a new chat while preserving history"""
         chat_id = f"Chat {len(self.chats) + 1}"
-        self.chats[chat_id] = {"name": chat_id, "messages": []}
+        self.chats[chat_id] = {
+            "name": chat_id,
+            "messages": []
+        }
         self.current_chat_id = chat_id
         self.saved_chats.addItem(chat_id)
         self.saved_chats.setCurrentText(chat_id)
-        self.clear_chat()
+        
+        # Clear only the display, not the stored messages
+        for i in reversed(range(self.chat_layout.count())): 
+            self.chat_layout.itemAt(i).widget().setParent(None)
+        
+        # Save the updated chat list
         self.save_chats()
 
     def rename_chat(self):
@@ -319,10 +333,19 @@ class ChatWidget(QWidget):
                 self.save_chats()
 
     def load_chat(self, chat_name):
+        """Load a specific chat from history"""
+        if not chat_name:
+            return
+            
         for chat_id, chat_data in self.chats.items():
             if chat_data['name'] == chat_name:
                 self.current_chat_id = chat_id
-                self.clear_chat()
+                
+                # Clear the display
+                for i in reversed(range(self.chat_layout.count())): 
+                    self.chat_layout.itemAt(i).widget().setParent(None)
+                    
+                # Reload the messages
                 for message in chat_data['messages']:
                     message_widget = MessageWidget(
                         sender=message['sender'],
@@ -335,21 +358,96 @@ class ChatWidget(QWidget):
                 break
 
     def save_chats(self):
-        with open('chats.json', 'w') as f:
-            json.dump(self.chats, f)
+        """Save chat history to local storage"""
+        chats_file = os.path.join(self.file_ops.sessions_dir, 'chat_history.json')
+        try:
+            with open(chats_file, 'w', encoding='utf-8') as f:
+                json.dump(self.chats, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Error saving chat history: {str(e)}")
             
     def save_chat(self):
-        if self.current_chat_id and self.current_chat_id in self.chats:
-            self.file_ops.save_session(self.get_transcript(), self.chats[self.current_chat_id]['messages'])
+        """Save the current chat session with option to include transcript"""
+        if not self.current_chat_id or not self.current_chat_id in self.chats:
+            QMessageBox.warning(self, "Save Error", "No active chat to save.")
+            return
 
+        # Ask user what to save
+        reply = QMessageBox.question(
+            self,
+            "Save Options",
+            "Would you like to save the chat with the transcript?",
+            QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel
+        )
 
+        if reply == QMessageBox.Cancel:
+            return
+
+        # Get parent window to access transcript
+        main_window = self.window()
+        transcript = ""
+        if reply == QMessageBox.Yes and hasattr(main_window, 'transcription_app'):
+            transcript = main_window.transcription_app.transcription_widget.get_transcript()
+
+        # Get save file path with format options
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            'Save Chat',
+            os.path.join(self.file_ops.sessions_dir, f"{self.chats[self.current_chat_id]['name']}"),
+            'Text Files (*.txt);;JSON Files (*.json)'
+        )
+
+        if not file_path:
+            return
+
+        try:
+            chat_data = {
+                'chat_name': self.chats[self.current_chat_id]['name'],
+                'messages': self.chats[self.current_chat_id]['messages'],
+                'transcript': transcript if transcript else ""
+            }
+
+            if file_path.endswith('.json'):
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(chat_data, f, indent=2, ensure_ascii=False)
+            else:  # Save as text
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(f"Chat: {chat_data['chat_name']}\n\n")
+                    if transcript:
+                        f.write("TRANSCRIPT:\n")
+                        f.write("-" * 50 + "\n")
+                        f.write(transcript)
+                        f.write("\n" + "-" * 50 + "\n\n")
+                    f.write("CHAT HISTORY:\n")
+                    f.write("-" * 50 + "\n")
+                    for msg in chat_data['messages']:
+                        f.write(f"{msg['sender']}: {msg['message']}\n")
+
+            QMessageBox.information(
+                self,
+                "Save Success",
+                "Chat has been saved successfully."
+            )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Save Error",
+                f"Failed to save chat: {str(e)}"
+            )
+            
     def load_chats(self):
-        if os.path.exists('chats.json'):
-            with open('chats.json', 'r') as f:
-                self.chats = json.load(f)
-            self.saved_chats.clear()
-            for chat_id, chat_data in self.chats.items():
-                self.saved_chats.addItem(chat_data['name'])
+        """Load chat history from local storage"""
+        chats_file = os.path.join(self.file_ops.sessions_dir, 'chat_history.json')
+        if os.path.exists(chats_file):
+            try:
+                with open(chats_file, 'r', encoding='utf-8') as f:
+                    self.chats = json.load(f)
+                self.saved_chats.clear()
+                for chat_id, chat_data in self.chats.items():
+                    self.saved_chats.addItem(chat_data['name'])
+            except Exception as e:
+                print(f"Error loading chat history: {str(e)}")
                 
     def get_chat_history(self):
         """Get the chat history for the current chat"""

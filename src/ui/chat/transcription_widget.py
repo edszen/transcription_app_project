@@ -197,3 +197,21 @@ class TranscriptionWidget(QWidget):
 
     def get_transcript(self):
         return self.text_area.toPlainText()
+    
+    def clear(self):
+        """Clear the transcription widget state"""
+        self.text_area.clear()
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        self.cancel_button.setEnabled(False)
+        if self.transcribing_timer.isActive():
+            self.transcribing_timer.stop()
+        self.dot_count = 0
+
+    def set_transcript(self, transcript):
+        """Set the transcript text and format it"""
+        if transcript:
+            formatted_text = self.format_transcript(transcript)
+            self.text_area.setHtml(formatted_text)
+        else:
+            self.text_area.clear()
