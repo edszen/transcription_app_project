@@ -23,38 +23,54 @@ class MediaPlayer(QWidget):
         
         # Create controls layout
         controls_layout = QHBoxLayout()
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setSpacing(8)  # Adjust spacing between controls
+        
+        # Create button size consistent with other UI elements
+        button_size = 36  # Increased from 32 to match other buttons
         
         # Play/Pause button
         self.play_button = QPushButton()
         self.play_button.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.play_button.setFixedSize(32, 32)
+        self.play_button.setFixedSize(button_size, button_size)
+        self.play_button.setIconSize(self.play_button.size() * 0.7)  # Adjust icon size
         
         # Backward and Forward buttons
         self.backward_button = QPushButton()
         self.backward_button.setIcon(self.style().standardIcon(QStyle.SP_MediaSkipBackward))
-        self.backward_button.setFixedSize(32, 32)
+        self.backward_button.setFixedSize(button_size, button_size)
+        self.backward_button.setIconSize(self.backward_button.size() * 0.7)
         
         self.forward_button = QPushButton()
         self.forward_button.setIcon(self.style().standardIcon(QStyle.SP_MediaSkipForward))
-        self.forward_button.setFixedSize(32, 32)
+        self.forward_button.setFixedSize(button_size, button_size)
+        self.forward_button.setIconSize(self.forward_button.size() * 0.7)
         
-        # Time labels
+        # Time labels with fixed width
         self.time_label = QLabel("00:00")
-        self.total_time_label = QLabel("00:00")
+        self.time_label.setFixedWidth(50)
+        self.time_label.setAlignment(Qt.AlignCenter)
         
         # Progress slider
         self.progress_slider = QSlider(Qt.Horizontal)
         self.progress_slider.setRange(0, 0)
+        self.progress_slider.setFixedHeight(button_size // 2)  # Half the button height
+        
+        self.total_time_label = QLabel("00:00")
+        self.total_time_label.setFixedWidth(50)
+        self.total_time_label.setAlignment(Qt.AlignCenter)
         
         # Volume control
         self.volume_button = QPushButton()
         self.volume_button.setIcon(self.style().standardIcon(QStyle.SP_MediaVolume))
-        self.volume_button.setFixedSize(32, 32)
+        self.volume_button.setFixedSize(button_size, button_size)
+        self.volume_button.setIconSize(self.volume_button.size() * 0.7)
         
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(70)
         self.volume_slider.setFixedWidth(100)
+        self.volume_slider.setFixedHeight(button_size // 2)
         
         # Add widgets to controls layout
         controls_layout.addWidget(self.backward_button)
@@ -69,8 +85,46 @@ class MediaPlayer(QWidget):
         # Add layouts to main layout
         layout.addLayout(controls_layout)
         
-        # Set fixed height for media player
-        self.setFixedHeight(70)  # Adjust this value as needed
+        # Set fixed height for media player to match other buttons
+        self.setFixedHeight(80)  # Increased from 70 to match upload button height
+        
+        # Add styling
+        self.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: none;
+                padding: 4px;
+            }
+            
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+            }
+            
+            QSlider::groove:horizontal {
+                border: 1px solid #999999;
+                height: 8px;
+                background: #CCCCCC;
+                margin: 2px 0;
+                border-radius: 4px;
+            }
+
+            QSlider::handle:horizontal {
+                background: #666666;
+                border: 1px solid #5c5c5c;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+
+            QSlider::handle:horizontal:hover {
+                background: #444444;
+            }
+            
+            QLabel {
+                padding: 0 5px;
+            }
+        """)
 
     def setup_connections(self):
         # Button connections

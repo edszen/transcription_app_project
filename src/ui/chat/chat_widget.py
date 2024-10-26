@@ -110,15 +110,22 @@ class ChatWidget(QWidget):
         self.saved_chats.currentTextChanged.connect(self.load_chat)
         layout.addWidget(self.saved_chats)
 
+        # Bottom buttons row
+        bottom_buttons_layout = QHBoxLayout()
+
         # Rename chat button
         self.rename_chat_button = QPushButton("Rename Chat")
         self.rename_chat_button.clicked.connect(self.rename_chat)
-        layout.addWidget(self.rename_chat_button)
         
         #Save chat button
         self.save_chat_button = QPushButton("Save Chat")
         self.save_chat_button.clicked.connect(self.save_chat)
-        layout.addWidget(self.save_chat_button)
+
+        # Add buttons to bottom layout with stretch to push them together
+        bottom_buttons_layout.addWidget(self.rename_chat_button)
+        bottom_buttons_layout.addWidget(self.save_chat_button)
+        
+        layout.addLayout(bottom_buttons_layout)
 
         self.setLayout(layout)
         
