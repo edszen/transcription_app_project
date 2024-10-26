@@ -100,7 +100,7 @@ class ChatWidget(QWidget):
         # Input area
         input_container = QWidget()
         input_layout = QHBoxLayout(input_container)
-        input_layout.setContentsMargins(10, 10, 10, 10)
+        input_layout.setContentsMargins(10, 0, 10, 0)
         
         self.input_field = QTextEdit()
         self.input_field.setMaximumHeight(100)
@@ -146,7 +146,7 @@ class ChatWidget(QWidget):
         bottom_container = QWidget()
         bottom_container.setFixedHeight(60)  # Match the transcription widget button height
         bottom_layout = QHBoxLayout(bottom_container)
-        bottom_layout.setContentsMargins(10, 10, 10, 10)
+        bottom_layout.setContentsMargins(10, 0, 10, 14)
         bottom_layout.setSpacing(10)
 
         # Rename and Save chat buttons
