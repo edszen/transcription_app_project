@@ -70,8 +70,16 @@ class ChatWidget(QWidget):
         self.load_chats()
 
     def init_ui(self):
+        # Main layout with no margins to maximize space
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)  # Minimize spacing between elements
+        
+        # Create a container for the top section (media player and chat)
+        top_container = QWidget()
+        top_layout = QVBoxLayout(top_container)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(0)
         
         # Media Player at the top
         self.media_player = MediaPlayer()
@@ -82,51 +90,83 @@ class ChatWidget(QWidget):
         self.chat_history.setWidgetResizable(True)
         self.chat_content = QWidget()
         self.chat_layout = QVBoxLayout(self.chat_content)
+        self.chat_layout.setContentsMargins(10, 10, 10, 10)
         self.chat_history.setWidget(self.chat_content)
-        layout.addWidget(self.chat_history)
 
+        # Set a minimum height for chat history to ensure proper spacing
+        self.chat_history.setMinimumHeight(400)
+        top_layout.addWidget(self.chat_history)
+        
         # Input area
-        input_layout = QHBoxLayout()
+        input_container = QWidget()
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(10, 10, 10, 10)
+        
         self.input_field = QTextEdit()
         self.input_field.setMaximumHeight(100)
         self.send_button = QPushButton("Send")
         self.send_button.clicked.connect(self.send_question)
+        self.send_button.setFixedHeight(40)  # Match button height
+        
         input_layout.addWidget(self.input_field)
         input_layout.addWidget(self.send_button)
-        layout.addLayout(input_layout)
+        top_layout.addWidget(input_container)
 
-        # Chat management
-        chat_management_layout = QHBoxLayout()
+        # Chat management buttons
+        buttons_container = QWidget()
+        buttons_layout = QHBoxLayout(buttons_container)
+        buttons_layout.setContentsMargins(10, 10, 10, 10)
+        buttons_layout.setSpacing(10)
+        
         self.clear_button = QPushButton("Clear Chat")
-        self.clear_button.clicked.connect(self.clear_chat)
         self.new_chat_button = QPushButton("New Chat")
+        self.clear_button.clicked.connect(self.clear_chat)
         self.new_chat_button.clicked.connect(self.new_chat)
-        chat_management_layout.addWidget(self.clear_button)
-        chat_management_layout.addWidget(self.new_chat_button)
-        layout.addLayout(chat_management_layout)
+        
+        # Set fixed height for management buttons
+        self.clear_button.setFixedHeight(40)
+        self.new_chat_button.setFixedHeight(40)
+        
+        buttons_layout.addWidget(self.clear_button)
+        buttons_layout.addWidget(self.new_chat_button)
+        top_layout.addWidget(buttons_container)
 
         # Saved chats dropdown
-        self.saved_chats = QComboBox()
-        self.saved_chats.currentTextChanged.connect(self.load_chat)
-        layout.addWidget(self.saved_chats)
-
-        # Bottom buttons row
-        bottom_buttons_layout = QHBoxLayout()
-
-        # Rename chat button
-        self.rename_chat_button = QPushButton("Rename Chat")
-        self.rename_chat_button.clicked.connect(self.rename_chat)
+        dropdown_container = QWidget()
+        dropdown_layout = QVBoxLayout(dropdown_container)
+        dropdown_layout.setContentsMargins(10, 0, 10, 10)
         
-        #Save chat button
+        self.saved_chats = QComboBox()
+        self.saved_chats.setFixedHeight(40)  # Match height
+        self.saved_chats.currentTextChanged.connect(self.load_chat)
+        dropdown_layout.addWidget(self.saved_chats)
+        top_layout.addWidget(dropdown_container)
+
+        # Bottom buttons container with fixed height
+        bottom_container = QWidget()
+        bottom_container.setFixedHeight(60)  # Match the transcription widget button height
+        bottom_layout = QHBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(10, 10, 10, 10)
+        bottom_layout.setSpacing(10)
+
+        # Rename and Save chat buttons
+        self.rename_chat_button = QPushButton("Rename Chat")
         self.save_chat_button = QPushButton("Save Chat")
+        
+        # Set fixed height for bottom buttons
+        self.rename_chat_button.setFixedHeight(40)
+        self.save_chat_button.setFixedHeight(40)
+        
+        self.rename_chat_button.clicked.connect(self.rename_chat)
         self.save_chat_button.clicked.connect(self.save_chat)
 
-        # Add buttons to bottom layout with stretch to push them together
-        bottom_buttons_layout.addWidget(self.rename_chat_button)
-        bottom_buttons_layout.addWidget(self.save_chat_button)
-        
-        layout.addLayout(bottom_buttons_layout)
+        bottom_layout.addWidget(self.rename_chat_button)
+        bottom_layout.addWidget(self.save_chat_button)
 
+        # Add all containers to main layout
+        layout.addWidget(top_container, 1)  # Give top container stretch factor
+        layout.addWidget(bottom_container)  # Bottom container without stretch
+        
         self.setLayout(layout)
         
     def update_theme(self, theme):
