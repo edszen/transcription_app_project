@@ -58,7 +58,6 @@ class SidebarButton(QPushButton):
 class SidebarMenu(QWidget):
     new_session_triggered = pyqtSignal()
     load_session_triggered = pyqtSignal()
-    open_session_triggered = pyqtSignal()
     save_session_triggered = pyqtSignal()
     edit_speaker_names_triggered = pyqtSignal()
     edit_speaker_colors_triggered = pyqtSignal()
@@ -148,7 +147,7 @@ class SidebarMenu(QWidget):
         main_menu = [
             ("Session", "session", True, [
                 ("New Session", self.new_session_triggered.emit),
-                ("Open Session", self.open_session_triggered.emit),
+                ("Open Session", self.load_session_triggered.emit),
                 ("Save Session", self.save_session_triggered.emit),
             ]),
             ("Edit", "edit", True, [

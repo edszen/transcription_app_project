@@ -80,6 +80,9 @@
 │   │   ├── alignment.py
 │   │   ├── diarization.py
 │   │   ├── linguistic_processing.py
+│   │   ├── managers
+│   │   │   ├── __init__.py
+│   │   │   └── session_manager.py
 │   │   ├── speaker_embedding.py
 │   │   ├── transcribe.py
 │   │   └── vad.py
@@ -91,10 +94,14 @@
 │   │   ├── __init__.py
 │   │   ├── chat
 │   │   │   ├── chat_widget.py
+│   │   │   ├── message_widget.py
 │   │   │   └── transcription_widget.py
 │   │   ├── help_dialog.py
 │   │   ├── main_ui.py
 │   │   ├── main_window.py
+│   │   ├── media
+│   │   │   ├── __init__.py
+│   │   │   └── media_player.py
 │   │   ├── settings.py
 │   │   ├── sidebar
 │   │   │   ├── __init__.py
@@ -125,4 +132,4 @@
     ├── test_test.py
     └── test_transcribe.py
 
-13 directories, 113 files
+15 directories, 118 files
