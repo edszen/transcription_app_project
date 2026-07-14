@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QH
                              QSplitter, QStyle, QStyleOption, QTextEdit, QFileDialog, QMessageBox, QComboBox,
                              QDialogButtonBox, QCheckBox, QProgressBar, QLineEdit, QLabel)
 from PyQt5.QtCore import QSettings, Qt, pyqtSlot, QObject
-from PyQt5.QtGui import QPainter, QStyleOption, QStyle
+from PyQt5.QtGui import QPainter
 import logging
 import os
 from src.api.openai_chat import ChatGPTIntegration
